@@ -15,7 +15,7 @@ class LungNoduleSegmentation:
     parent.dependencies = []
     parent.contributors = ["Pietro Nardelli (University College Cork)"] 
     parent.helpText = """
-    Scripted module bundled in an extension for Lung Segmentation.
+    Scripted module bundled in an extension for Lung Nodule Segmentation.
     """
     parent.acknowledgementText = """
     This file was originally developed by Pietro Nardelli, University College Cork.
@@ -47,24 +47,6 @@ class LungNoduleSegmentationWidget:
 
   def setup(self):
     #
-    # Reload and Test area
-    #
-    reloadCollapsibleButton = ctk.ctkCollapsibleButton()
-    reloadCollapsibleButton.text = "Reload Section"
-    self.layout.addWidget(reloadCollapsibleButton)
-    self.layout.setSpacing(6)
-    reloadFormLayout = qt.QFormLayout(reloadCollapsibleButton)
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "LungNoduleSegmentation Reload"
-    reloadFormLayout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    #
     # Parameters Area
     #
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -88,22 +70,6 @@ class LungNoduleSegmentationWidget:
     self.inputSelector.setMRMLScene( slicer.mrmlScene )
     self.inputSelector.setToolTip( "Pick the chest CT data to segment." )
     IOFormLayout.addRow("Input CT Data: ", self.inputSelector)
-
-    ###################################################################################
-    ###############################  Label Selector  ##################################
-    ###################################################################################
-    self.outputSelector = slicer.qMRMLNodeComboBox()
-    self.outputSelector.nodeTypes = ( ("vtkMRMLScalarVolumeNode"), "" )
-    self.outputSelector.addAttribute( "vtkMRMLScalarVolumeNode", "LabelMap", 1 )
-    self.outputSelector.selectNodeUponCreation = True
-    self.outputSelector.addEnabled = True
-    self.outputSelector.removeEnabled = True
-    self.outputSelector.noneEnabled = False
-    self.outputSelector.showHidden = False
-    self.outputSelector.showChildNodeTypes = False
-    self.outputSelector.setMRMLScene( slicer.mrmlScene )
-    self.outputSelector.setToolTip( "Pick the output (label) of the algorithm." )
-    IOFormLayout.addRow("Lung Label: ", self.outputSelector)
 
     ###################################################################################
     ###########################  Fiducial Point Selector  #############################
@@ -139,7 +105,7 @@ class LungNoduleSegmentationWidget:
     ################################ Create Connections ####################################
     ########################################################################################
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
-    self.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
+    self.fiducialListSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
     self.LungNoduleSegmentationButton.connect('clicked(bool)', self.onStartSegmentationButton)
   
@@ -150,12 +116,12 @@ class LungNoduleSegmentationWidget:
 
   def onSelect(self):
 
-    if self.inputSelector.currentNode() and self.outputSelector.currentNode():
+    if self.inputSelector.currentNode() and self.fiducialListSelector.currentNode():
       self.LungNoduleSegmentationButton.enabled = True
 
   def onStartSegmentationButton(self):
+    self.LungNoduleSegmentationButton.enabled = False   
     inputVolume = self.inputSelector.currentNode()
-    outputVolume = self.outputSelector.currentNode()
     seedPoint = self.fiducialListSelector.currentNode()
 
     inputNodeArray = slicer.util.array(inputVolume.GetID())
@@ -180,18 +146,52 @@ class LungNoduleSegmentationWidget:
     threshold = (-1024+bins[mx[0][0]]) / 2
     print threshold
 
+    nodeType = 'vtkMRMLScalarVolumeNode'
+    self.labelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
+    self.labelNode.SetLabelMap(1)
+    self.labelNode.SetScene(slicer.mrmlScene)
+    self.labelNode.SetName(slicer.mrmlScene.GetUniqueNameByString('NoduleLabel'))
+    slicer.mrmlScene.AddNode(self.labelNode)
+
     LungNoduleSegmentationModule = slicer.modules.lungnodulesegmentationcli
+    labelColor = 6
 
     parameters = {
        "InputVolume": inputVolume,
-       "OutputVolume": outputVolume,
+       "OutputVolume": self.labelNode,
        "seed": seedPoint,
        "Lower": -1024,
        "Upper": threshold,
-       "noduleColor": 6,
+       "noduleColor": labelColor,
     }
 
-    slicer.cli.run( LungNoduleSegmentationModule,None,parameters,wait_for_completion=False )
+    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion=False )
+    modelHierarchyCollection = slicer.mrmlScene.GetNodesByName('NoduleModelHierarchy')
+    if( modelHierarchyCollection.GetNumberOfItems() >= 1 ):
+      modelHierarchy = modelHierarchyCollection.GetItemAsObject(0)
+    else:
+      nodeType = 'vtkMRMLModelHierarchyNode'
+      modelHierarchy = slicer.mrmlScene.CreateNodeByClass(nodeType)
+      modelHierarchy.SetScene(slicer.mrmlScene)
+      modelHierarchy.SetName(slicer.mrmlScene.GetUniqueNameByString('NoduleModelHierarchy'))
+      slicer.mrmlScene.AddNode(modelHierarchy)
+    
+    parameters = {}
+    parameters["InputVolume"] = self.labelNode.GetID()
+    parameters["ModelSceneFile"] = modelHierarchy.GetID()
+    parameters["Name"] = 'NoduleModel'
+    parameters["Smooth"] = 20
+    parameters["Decimate"] = 0.10
+    
+    modelMaker = slicer.modules.modelmaker
+    slicer.cli.run( modelMaker, None, parameters, wait_for_completion=False )
+  
+    lm = slicer.app.layoutManager()
+    threeDView = lm.threeDWidget( 0 ).threeDView()
+    threeDView.resetFocalPoint()
+    threeDView.lookFromViewAxis(ctk.ctkAxesWidget().Anterior)
+
+    self.LungNoduleSegmentationButton.enabled = True
 
   def datacheck_peakdetect(self, x_axis, y_axis):
     if x_axis is None:
@@ -317,53 +317,5 @@ class LungNoduleSegmentationWidget:
         
     return [max_peaks, min_peaks]
 
-
-  def onReload(self,moduleName="LungNoduleSegmentation"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    import os
-    import unittest
-    from __main__ import vtk, qt, ctk, slicer, numpy
-    import imp, sys
-
-    widgetName = moduleName + "Widget"
-
-    # reload the source code
-    # - set source file path
-    # - load the module to the global space
-    filePath = eval('slicer.modules.%s.path' % moduleName.lower())
-    p = os.path.dirname(filePath)
-    if not sys.path.__contains__(p):
-      sys.path.insert(0,p)
-    fp = open(filePath, "r")
-    globals()[moduleName] = imp.load_module(
-        moduleName, fp, filePath, ('.py', 'r', imp.PY_SOURCE))
-    fp.close()
-
-    # rebuild the widget
-    # - find and hide the existing widget
-    # - create a new widget in the existing parent
-    parent = slicer.util.findChildren(name='%s Reload' % moduleName)[0].parent().parent()
-    for child in parent.children():
-      try:
-        child.hide()
-      except AttributeError:
-        pass
-    # Remove spacer items
-    item = parent.layout().itemAt(0)
-    while item:
-      parent.layout().removeItem(item)
-      item = parent.layout().itemAt(0)
-
-    # delete the old widget instance
-    if hasattr(globals()['slicer'].modules, widgetName):
-      getattr(globals()['slicer'].modules, widgetName).cleanup()
-
-    # create new widget inside existing parent
-    globals()[widgetName.lower()] = eval(
-        'globals()["%s"].%s(parent)' % (moduleName, widgetName))
-    globals()[widgetName.lower()].setup()
-    setattr(globals()['slicer'].modules, widgetName, globals()[widgetName.lower()])
-
+    return True
 
