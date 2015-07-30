@@ -17,6 +17,7 @@ include(${Slicer_USE_FILE})
 #-----------------------------------------------------------------------------
 add_subdirectory(LungNoduleSegmentation)
 add_subdirectory(LungNoduleSegmentationCLI)
+add_subdirectory(LungSegmentationCLI)
 
 #-----------------------------------------------------------------------------
 include(${Slicer_EXTENSION_CPACK})
