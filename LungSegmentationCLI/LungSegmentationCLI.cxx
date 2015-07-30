@@ -30,8 +30,6 @@
 #include "itkBinaryImageToShapeLabelMapFilter.h"
 #include "itkLabelMapToBinaryImageFilter.h"
 
-#include "itkTimeProbe.h"
-
 #include "LungSegmentationCLICLP.h"
 
 int main( int argc, char * argv[] )
@@ -55,9 +53,6 @@ int main( int argc, char * argv[] )
   typedef itk::BinaryImageToShapeLabelMapFilter< OutputImageType > 	I2LType;
   typedef I2LType::OutputImageType 					LabelMapType;
   typedef LabelMapType::LabelObjectType					ShapeLabelObjectType;
-
-  itk::TimeProbe lungSegmentationClock;
-  lungSegmentationClock.Start();
 
   ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( InputVolume.c_str() );
@@ -164,9 +159,6 @@ int main( int argc, char * argv[] )
 	std::cerr << e.GetLocation() << std::endl;
 	return EXIT_FAILURE;
   }
-
-  lungSegmentationClock.Stop();
-  std::cout << "Total time for lung segmentation: " << lungSegmentationClock.GetTotal() << std::endl;
 
   return EXIT_SUCCESS;
 }

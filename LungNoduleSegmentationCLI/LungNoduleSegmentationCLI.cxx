@@ -46,7 +46,6 @@
 
 #include "itkImageDuplicator.h"
 
-#include "itkTimeProbe.h"
 #include "itkPoint.h"
 
 #include "LungNoduleSegmentationCLICLP.h"
@@ -73,9 +72,6 @@ int main( int argc, char * argv[] )
   typedef itk::BinaryImageToShapeLabelMapFilter< OutputImageType > 	I2LType;
   typedef I2LType::OutputImageType 					LabelMapType;
   typedef LabelMapType::LabelObjectType					ShapeLabelObjectType;
-
-  itk::TimeProbe noduleSegmentationClock;
-  noduleSegmentationClock.Start();
 
   InputReaderType::Pointer inputReader = InputReaderType::New();
   inputReader->SetFileName( InputVolume.c_str() );
@@ -418,7 +414,5 @@ int main( int argc, char * argv[] )
 	return EXIT_FAILURE;
   }
 
-  noduleSegmentationClock.Stop();
-  std::cout << "Nodule Segmentation: "<< noduleSegmentationClock.GetTotal() << std::endl;
   return EXIT_SUCCESS;
 }
