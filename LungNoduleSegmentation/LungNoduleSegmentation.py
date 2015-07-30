@@ -120,6 +120,9 @@ class LungNoduleSegmentationWidget:
       self.LungNoduleSegmentationButton.enabled = True
 
   def onStartSegmentationButton(self):
+    # Analyze histogram of the image to work out the second peak intensity value
+    start = timeit.default_timer()
+
     self.LungNoduleSegmentationButton.enabled = False   
     inputVolume = self.inputSelector.currentNode()
     seedPoint = self.fiducialListSelector.currentNode()
@@ -166,7 +169,13 @@ class LungNoduleSegmentationWidget:
       threshold = (-1024+bins[mx[0][0]]) / 2
  
     print threshold
+    
+    stop = timeit.default_timer()
+    print "Histogram anaylis: ", stop - start, "sec" 
 
+    # Segment the lung surface
+
+    start = timeit.default_timer()
 
     nodeType = 'vtkMRMLScalarVolumeNode'
     self.lungLabelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
@@ -186,7 +195,13 @@ class LungNoduleSegmentationWidget:
        "lungColor": lungLabelColor,
     }
 
-    slicer.cli.run( LungSegmentationModule, None, parameters, wait_for_completion = False )
+    slicer.cli.run( LungSegmentationModule, None, parameters, wait_for_completion = True )
+
+    stop = timeit.default_timer()
+    print "Lung segmentation: ", stop - start, "sec" 
+
+    # Segment the selected nodule
+    start = timeit.default_timer()
 
     nodeType = 'vtkMRMLScalarVolumeNode'
     self.noduleLabelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
@@ -206,33 +221,39 @@ class LungNoduleSegmentationWidget:
        "noduleColor": labelColor,
     }
 
-    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion = False )
+    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion = True )
 
-    '''modelHierarchyCollection = slicer.mrmlScene.GetNodesByName('NoduleModelHierarchy')
+    stop = timeit.default_timer()
+    print "Nodule segmentation: ", stop - start, "sec" 
+
+    # Create 3D model of the segment nodule 
+    start = timeit.default_timer()
+
+    modelHierarchyCollection = slicer.mrmlScene.GetNodesByName('NoduleModelHierarchy')
     if( modelHierarchyCollection.GetNumberOfItems() >= 1 ):
       modelHierarchy = modelHierarchyCollection.GetItemAsObject(0)
     else:
-      nodeType = 'vtkMRMLModelHierarchyNode'
-      modelHierarchy = slicer.mrmlScene.CreateNodeByClass(nodeType)
-      modelHierarchy.SetScene(slicer.mrmlScene)
+      modelHierarchy = slicer.vtkMRMLModelHierarchyNode()
       modelHierarchy.SetName(slicer.mrmlScene.GetUniqueNameByString('NoduleModelHierarchy'))
       slicer.mrmlScene.AddNode(modelHierarchy)
     
     parameters = {}
-    parameters["InputVolume"] = self.labelNode.GetID()
+    parameters["InputVolume"] = self.noduleLabelNode.GetID()
     parameters["ModelSceneFile"] = modelHierarchy.GetID()
     parameters["Name"] = 'NoduleModel'
     parameters["Smooth"] = 20
     parameters["Decimate"] = 0.10
-    parameters["color"] = '/tmp/Slicer/BFAIJ_vtkMRMLColorTableNodeLabels.ctbl'
     
     modelMaker = slicer.modules.modelmaker
-    slicer.cli.run( modelMaker, None, parameters, wait_for_completion=False )
+    slicer.cli.run( modelMaker, None, parameters, wait_for_completion = True )
   
     lm = slicer.app.layoutManager()
     threeDView = lm.threeDWidget( 0 ).threeDView()
     threeDView.resetFocalPoint()
-    threeDView.lookFromViewAxis(ctk.ctkAxesWidget().Anterior)'''
+    threeDView.lookFromViewAxis(ctk.ctkAxesWidget().Anterior)
+
+    stop = timeit.default_timer()
+    print "Model maker: ", stop - start, "sec" 
 
     self.LungNoduleSegmentationButton.enabled = True
 
