@@ -144,29 +144,71 @@ class LungNoduleSegmentationWidget:
     mx, mn = self.peakdetect(histogram)
 
     threshold = (-1024+bins[mx[0][0]]) / 2
+    if threshold < -800:
+      maskedImage = inputNodeArray[inputNodeArray >= -1000]
+
+      edges=[] 
+      I_max = maskedImage.max()
+      I_min = maskedImage.min()
+
+      for val in range(I_min,I_max+2): 
+        edges.append(val)
+
+      I_max =float(I_max)
+      I_min =float(I_min)
+
+      maskedImage = maskedImage.astype(float)
+   
+      histogram,bins = numpy.histogram(maskedImage,bins=edges)
+
+      mx, mn = self.peakdetect(histogram)
+
+      threshold = (-1024+bins[mx[0][0]]) / 2
+ 
     print threshold
 
+
     nodeType = 'vtkMRMLScalarVolumeNode'
-    self.labelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
-    self.labelNode.SetLabelMap(1)
-    self.labelNode.SetScene(slicer.mrmlScene)
-    self.labelNode.SetName(slicer.mrmlScene.GetUniqueNameByString('NoduleLabel'))
-    slicer.mrmlScene.AddNode(self.labelNode)
+    self.lungLabelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
+    self.lungLabelNode.SetLabelMap(1)
+    self.lungLabelNode.SetScene(slicer.mrmlScene)
+    self.lungLabelNode.SetName(slicer.mrmlScene.GetUniqueNameByString('LungLabel'))
+    slicer.mrmlScene.AddNode(self.lungLabelNode)
+
+    LungSegmentationModule = slicer.modules.lungsegmentationcli
+    lungLabelColor = 1
+
+    parameters = {
+       "InputVolume": inputVolume,
+       "OutputVolume": self.lungLabelNode,
+       "Lower": -1024,
+       "Upper": threshold,
+       "lungColor": lungLabelColor,
+    }
+
+    slicer.cli.run( LungSegmentationModule, None, parameters, wait_for_completion = False )
+
+    nodeType = 'vtkMRMLScalarVolumeNode'
+    self.noduleLabelNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
+    self.noduleLabelNode.SetLabelMap(1)
+    self.noduleLabelNode.SetScene(slicer.mrmlScene)
+    self.noduleLabelNode.SetName(slicer.mrmlScene.GetUniqueNameByString('NoduleLabel'))
+    slicer.mrmlScene.AddNode(self.noduleLabelNode)
 
     LungNoduleSegmentationModule = slicer.modules.lungnodulesegmentationcli
     labelColor = 6
 
     parameters = {
        "InputVolume": inputVolume,
-       "OutputVolume": self.labelNode,
+       "InputLungLabel": self.lungLabelNode, 
+       "OutputVolume": self.noduleLabelNode,
        "seed": seedPoint,
-       "Lower": -1024,
-       "Upper": threshold,
        "noduleColor": labelColor,
     }
 
-    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion=False )
-    modelHierarchyCollection = slicer.mrmlScene.GetNodesByName('NoduleModelHierarchy')
+    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion = False )
+
+    '''modelHierarchyCollection = slicer.mrmlScene.GetNodesByName('NoduleModelHierarchy')
     if( modelHierarchyCollection.GetNumberOfItems() >= 1 ):
       modelHierarchy = modelHierarchyCollection.GetItemAsObject(0)
     else:
@@ -182,6 +224,7 @@ class LungNoduleSegmentationWidget:
     parameters["Name"] = 'NoduleModel'
     parameters["Smooth"] = 20
     parameters["Decimate"] = 0.10
+    parameters["color"] = '/tmp/Slicer/BFAIJ_vtkMRMLColorTableNodeLabels.ctbl'
     
     modelMaker = slicer.modules.modelmaker
     slicer.cli.run( modelMaker, None, parameters, wait_for_completion=False )
@@ -189,7 +232,7 @@ class LungNoduleSegmentationWidget:
     lm = slicer.app.layoutManager()
     threeDView = lm.threeDWidget( 0 ).threeDView()
     threeDView.resetFocalPoint()
-    threeDView.lookFromViewAxis(ctk.ctkAxesWidget().Anterior)
+    threeDView.lookFromViewAxis(ctk.ctkAxesWidget().Anterior)'''
 
     self.LungNoduleSegmentationButton.enabled = True
 
