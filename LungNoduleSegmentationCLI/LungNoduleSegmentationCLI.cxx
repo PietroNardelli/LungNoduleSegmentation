@@ -420,6 +420,5 @@ int main( int argc, char * argv[] )
 
   noduleSegmentationClock.Stop();
   std::cout << "Nodule Segmentation: "<< noduleSegmentationClock.GetTotal() << std::endl;
-
   return EXIT_SUCCESS;
 }
