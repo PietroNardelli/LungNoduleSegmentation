@@ -57,9 +57,11 @@
 
 #include "itkLabelContourImageFilter.h"
 #include "itkImageLinearConstIteratorWithIndex.h"
+#include "itkAddImageFilter.h"
+
+#include "itkTimeProbe.h"
 
 #include "LungSegmentationCLICLP.h"
-
 
 const unsigned int Dim = 3;
 
@@ -531,6 +533,8 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
 int main( int argc, char * argv[] )
 {
   PARSE_ARGS;
+  itk::TimeProbe clockWriting;
+  clockWriting.Start();
 
   typedef itk::Image< LabelType,       Dim > 				LabelImageType;
   typedef itk::Image< MSOutputPixelType, Dim > 				MSOutputImageType;
@@ -636,7 +640,6 @@ int main( int argc, char * argv[] )
   // Extract a slice to find the trachea location
   OutputImageType::SizeType sliceSize = clonedInput->GetLargestPossibleRegion().GetSize();
   sliceSize[2] = 1;
-  std::cout<<"sliceSize: "<<sliceSize<<std::endl;
 
   OutputImageType::IndexType sliceIndex;
   sliceIndex.Fill(0);
@@ -657,7 +660,7 @@ int main( int argc, char * argv[] )
   slice2labels->SetComputeFeretDiameter( 1 );
   slice2labels->Update();
 
-  std::cout << "Number of labels on slice: " << slice2labels->GetOutput()->GetNumberOfLabelObjects() << std::endl;
+  //std::cout << "Number of labels on slice: " << slice2labels->GetOutput()->GetNumberOfLabelObjects() << std::endl;
 
   float minDiameter = itk::NumericTraits< float >::max();
   unsigned long minLabel = 0;
@@ -677,7 +680,7 @@ int main( int argc, char * argv[] )
   }
 
   itk::Point<double, Dim> centroid = slice2labels->GetOutput()->GetNthLabelObject(minLabel)->GetCentroid();
-  std::cout<<"centroid: "<<centroid<<std::endl;
+  //std::cout<<"centroid: "<<centroid<<std::endl;
 
   clonedInput = inputDuplicator->GetOutput();
   
@@ -685,7 +688,7 @@ int main( int argc, char * argv[] )
   InputImageType::IndexType airwayIndex;
   clonedInput->TransformPhysicalPointToIndex(centroid, airwayIndex);
 
-  std::cout<<"index: "<<airwayIndex<<std::endl;
+  //std::cout<<"index: "<<airwayIndex<<std::endl;
 
   InputImageType::SizeType  cropSize;	                    
   InputImageType::IndexType cropIndex;              
@@ -710,9 +713,6 @@ int main( int argc, char * argv[] )
   cropRegion.SetSize(  cropSize  );                                                                
   cropRegion.SetIndex( cropIndex );
   
-  std::cout<<"cropIndex: "<<cropIndex<<std::endl;
-  std::cout<<"cropSize: "<<cropSize<<std::endl;
-
   // Cropping the trachea 
   typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType > inputROIFilterType;  
   inputROIFilterType::Pointer airwayROIFilter = inputROIFilterType::New();	                 
@@ -737,7 +737,7 @@ int main( int argc, char * argv[] )
   InputImageType::IndexType croppedAirwayIndex;
   airwayROIFilter->GetOutput()->TransformPhysicalPointToIndex(centroid, croppedAirwayIndex);
 
-  std::cout<<"index: "<<airwayIndex<<std::endl;
+  //std::cout<<"index: "<<airwayIndex<<std::endl;
 
   OutputImageType::Pointer airwayImage = AirwaySegmentation(airwayROIFilter->GetOutput(), fiducialSlice, croppedAirwayIndex, lungsColor);
 
@@ -758,7 +758,7 @@ int main( int argc, char * argv[] )
   airwayClosing->SetSafeBorder( 1 );
   airwayClosing->Update();
   airwayImage = airwayClosing->GetOutput();
-
+ 
   /* FINDING THE CARINA 
   clonedInput = inputDuplicator->GetOutput();
   int          value;
@@ -991,7 +991,7 @@ int main( int argc, char * argv[] )
   thresholdFilter->ThresholdOutside(0,2);
   thresholdFilter->SetOutsideValue(0);
 
-  ConnectedComponentImageFilterType::Pointer lungsCCFilter = ConnectedComponentImageFilterType::New ();
+  ConnectedComponentImageFilterType::Pointer lungsCCFilter = ConnectedComponentImageFilterType::New();
   lungsCCFilter->SetInput(thresholdFilter->GetOutput());
   lungsCCFilter->Update();
   OutputImageType::Pointer connCompImage = lungsCCFilter->GetOutput();
@@ -1017,6 +1017,12 @@ int main( int argc, char * argv[] )
   ccSliceBySliceFilter->Update();
   OutputImageType::Pointer ccSbSImage = ccSliceBySliceFilter->GetOutput();
 
+  typedef itk::ImageDuplicator<OutputImageType> CCSbSDuplicatorFilterType;
+  CCSbSDuplicatorFilterType::Pointer ccSbSDuplicatorFilter = CCSbSDuplicatorFilterType::New();
+  ccSbSDuplicatorFilter->SetInputImage(ccSbSImage);
+  ccSbSDuplicatorFilter->Update();
+  OutputImageType::Pointer ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
+
   typedef itk::RegionOfInterestImageFilter< OutputImageType, OutputImageType > SbSROIFilterType;  
   SbSROIFilterType::Pointer SbSExtractor = SbSROIFilterType::New();
   SbSExtractor->SetInput(ccSbSImage);
@@ -1031,7 +1037,7 @@ int main( int argc, char * argv[] )
   MinMaxCalculatorType::Pointer minMaxCalculator = MinMaxCalculatorType::New();
 
   unsigned int imageSize = ccSbSImage->GetLargestPossibleRegion().GetSize(2);
-  std::cout<<ccSbSImage->GetLargestPossibleRegion().GetSize(2)<<std::endl;
+  //std::cout<<ccSbSImage->GetLargestPossibleRegion().GetSize(2)<<std::endl;
   slice2labels->SetInputForegroundValue( 1 );
   slice2labels->SetFullyConnected( 1 );
   slice2labels->SetComputeFeretDiameter( 0 );
@@ -1044,7 +1050,7 @@ int main( int argc, char * argv[] )
   LabelContourFilterType::Pointer labelContourFilter = LabelContourFilterType::New();
 
   SbSROIFilterType::Pointer SbSPrevSliceExtractor = SbSROIFilterType::New();
-  SbSPrevSliceExtractor->SetInput(ccSbSImage);
+  SbSPrevSliceExtractor->SetInput(ccSbSImageCopy);
   InputImageType::IndexType SbSPrevIndex;
   SbSPrevIndex.Fill(0);
   InputImageType::RegionType SbSPrevRegion;
@@ -1052,32 +1058,28 @@ int main( int argc, char * argv[] )
  
   typedef itk::ImageLinearConstIteratorWithIndex<OutputImageType> LinearIterator;
 
-  StructuringElementType connectionErodeStructElement;
-  StructuringElementType::SizeType connectionErodeRadius;
-  connectionErodeRadius.Fill( 3 );
-  connectionErodeRadius[2] = 1;
-  connectionErodeStructElement.SetRadius( connectionErodeRadius );
-  connectionErodeStructElement.CreateStructuringElement();
+  OutputImageType::Pointer contoursImage;
+
+  SbSROIFilterType::Pointer connectionExtractor = SbSROIFilterType::New();
+  ConnectedComponentImageFilterType::Pointer connectionCCFilter = ConnectedComponentImageFilterType::New();
+
   typedef itk::BinaryErodeImageFilter <OutputImageType, OutputImageType, StructuringElementType> BinaryErodeImageFilterType;
   BinaryErodeImageFilterType::Pointer connectionErodeFilter = BinaryErodeImageFilterType::New();
-  connectionErodeFilter->SetForegroundValue( 1 );
-  connectionErodeFilter->SetKernel(connectionErodeStructElement);
 
-  StructuringElementType connectionDilateStructElement;
-  StructuringElementType::SizeType connectionDilateRadius;
-  connectionDilateRadius.Fill( 2 );
-  connectionDilateRadius[2] = 1;
-  connectionDilateStructElement.SetRadius( connectionDilateRadius );
-  connectionDilateStructElement.CreateStructuringElement();
   BinaryDilateImageFilterType::Pointer connectionDilateFilter = BinaryDilateImageFilterType::New();
-  connectionDilateFilter->SetForegroundValue( 1 );
-  connectionDilateFilter->SetKernel(connectionDilateStructElement);
+  BinaryDilateImageFilterType::Pointer connectionDilateFilterOne = BinaryDilateImageFilterType::New();
+  BinaryDilateImageFilterType::Pointer connectionDilateFilterTwo = BinaryDilateImageFilterType::New();
 
-  PasteImageFilterType::Pointer newPasteFilter = PasteImageFilterType::New();
-  InputImageType::IndexType pasteIndex;
-  pasteIndex.Fill(0);  
+  OutputImageType::Pointer erodeImage;
+  OutputImageType::Pointer dilateImage;
 
-  OutputImageType::Pointer contoursImage;
+  typedef itk::AddImageFilter<OutputImageType, OutputImageType> AddImageFilterType;
+  AddImageFilterType::Pointer addImageFilter = AddImageFilterType::New();
+
+  PasteImageFilterType::Pointer correctedPasteFilter = PasteImageFilterType::New();
+
+  ConnectedComponentImageFilterType::Pointer finalCCFilter = ConnectedComponentImageFilterType::New();
+  RelabelImageFilterType::Pointer finalRelabelFilter = RelabelImageFilterType::New();
 
   for(unsigned int i = 0; i < imageSize ; ++i)
   {
@@ -1089,11 +1091,20 @@ int main( int argc, char * argv[] )
 
     SbSIndex[2] = i;
     SbSRegion.SetIndex( SbSIndex );
-    SbSExtractor->SetRegionOfInterest( SbSRegion );		 
+    SbSExtractor->SetRegionOfInterest( SbSRegion );
+    ccSbSDuplicatorFilter->SetInputImage(ccSbSImage);
+    ccSbSDuplicatorFilter->Update();
+    ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
+    SbSExtractor->SetInput(ccSbSImageCopy);		 
     SbSExtractor->Update();
+    extractorDuplicatorFilter->SetInputImage(SbSExtractor->GetOutput());
+    extractorDuplicatorFilter->Update();
+    OutputImageType::Pointer extractedSbSImageCopy = extractorDuplicatorFilter->GetOutput();
+
     minMaxCalculator->SetImage(SbSExtractor->GetOutput());
     minMaxCalculator->ComputeMaximum();
-    if( i == 341 && minMaxCalculator->GetMaximum() == 1 )
+
+    if( i > 40 && i < 402 && minMaxCalculator->GetMaximum() == 1 )
     {
       slice2labels->SetInput( SbSExtractor->GetOutput() );
       slice2labels->Update();
@@ -1103,6 +1114,10 @@ int main( int argc, char * argv[] )
          SbSPrevIndex[2] = i-1;
          SbSPrevRegion.SetIndex( SbSPrevIndex );
          SbSPrevSliceExtractor->SetRegionOfInterest( SbSPrevRegion );
+         ccSbSDuplicatorFilter->SetInputImage(ccSbSImage);
+         ccSbSDuplicatorFilter->Update();
+         ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
+         SbSPrevSliceExtractor->SetInput(ccSbSImageCopy);
          SbSPrevSliceExtractor->Update();
          extractorPrevDuplicatorFilter->SetInputImage(SbSPrevSliceExtractor->GetOutput());
          extractorPrevDuplicatorFilter->Update();
@@ -1122,7 +1137,7 @@ int main( int argc, char * argv[] )
                // compute distance               
                if( prevIdx != 0 )
                {
-                 if( linIt.GetIndex()[0] - prevIdx < minDist )
+                 if( linIt.GetIndex()[0] - prevIdx != 0 && linIt.GetIndex()[0] - prevIdx < minDist )
                  {
                    minDist = linIt.GetIndex()[0] - prevIdx;
                    minDistIdx[0] = prevIdx + int(minDist/2);
@@ -1145,39 +1160,146 @@ int main( int argc, char * argv[] )
            linIt.NextLine();
          }
          std::cout<<minDistIdx<<std::endl;
- 
-         extractorDuplicatorFilter->SetInputImage(SbSExtractor->GetOutput());
-         extractorDuplicatorFilter->Update();    
-
          InputImageType::SizeType connectionSize;
          connectionSize[0] = 50;
-         connectionSize[1] = 60;
+         connectionSize[1] = 80;
          connectionSize[2] = 1;
 
          InputImageType::IndexType connectionIndex;
          connectionIndex[0] = minDistIdx[0]-25;
-         connectionIndex[1] = minDistIdx[1]-30;
+         connectionIndex[1] = minDistIdx[1]-40;
          connectionIndex[2] = 0;
 
          InputImageType::RegionType connectionRegion;
          connectionRegion.SetSize( connectionSize );
          connectionRegion.SetIndex( connectionIndex );  
 
-         SbSROIFilterType::Pointer connectionExtractor = SbSROIFilterType::New();
-         connectionExtractor->SetInput(extractorDuplicatorFilter->GetOutput());
+         connectionExtractor->SetInput(extractedSbSImageCopy);
          connectionExtractor->SetRegionOfInterest( connectionRegion );		 
-         connectionExtractor->Update();
+         connectionExtractor->Update(); 
+
+         // Connection erosion
+         StructuringElementType connectionErodeStructElement;
+         StructuringElementType::SizeType connectionErodeRadius;
+         unsigned int erodeRadiusSize = 3;
+         connectionErodeRadius.Fill( erodeRadiusSize );
+         connectionErodeRadius[2] = 1;
+         connectionErodeStructElement.SetRadius( connectionErodeRadius );
+         connectionErodeStructElement.CreateStructuringElement();
+         connectionErodeFilter->SetKernel(connectionErodeStructElement);
+
+         connectionErodeFilter->SetForegroundValue( 1 );
          connectionErodeFilter->SetInput(connectionExtractor->GetOutput());
-         connectionDilateFilter->SetInput(connectionErodeFilter->GetOutput());
+         connectionErodeFilter->Update();
+         erodeImage = connectionErodeFilter->GetOutput();   
+         connectionCCFilter->SetInput(erodeImage);
+         connectionCCFilter->Update();       
+         while( connectionCCFilter->GetObjectCount() == 1 )
+         {
+            connectionErodeRadius[0] += 1;
+            connectionErodeRadius[1] += 1;        
+            connectionErodeRadius[2] = 1;
+            connectionErodeStructElement.SetRadius( connectionErodeRadius );
+            connectionErodeStructElement.CreateStructuringElement();
+            connectionErodeFilter->Update();
+            erodeImage = connectionErodeFilter->GetOutput();
+            connectionCCFilter->SetInput(erodeImage);
+            connectionCCFilter->Update();
+         }
+
+         // Connection dilation
+         StructuringElementType connectionDilateStructElement;
+         StructuringElementType::SizeType connectionDilateRadius;
+         unsigned int dilateRadiusSize = erodeRadiusSize;
+         connectionDilateRadius.Fill( dilateRadiusSize );
+         connectionDilateRadius[2] = 1;
+         connectionDilateStructElement.SetRadius( connectionDilateRadius );
+         connectionDilateStructElement.CreateStructuringElement();
+
+         connectionDilateFilterOne->SetForegroundValue( 1 );
+         connectionDilateFilterOne->SetKernel(connectionDilateStructElement);
+         connectionDilateFilterOne->SetInput(connectionCCFilter->GetOutput());
+         connectionDilateFilterOne->Update();
+         OutputImageType::Pointer dilateImageOne = connectionDilateFilterOne->GetOutput();
+
+         connectionDilateFilterTwo->SetForegroundValue( 2 );
+         connectionDilateFilterTwo->SetKernel(connectionDilateStructElement);
+         connectionDilateFilterTwo->SetInput(connectionCCFilter->GetOutput());
+         connectionDilateFilterTwo->Update();      
+
+         OutputImageType::Pointer dilateImageTwo = connectionDilateFilterTwo->GetOutput();
+
+         addImageFilter->SetInput1(dilateImageOne);
+         addImageFilter->SetInput2(dilateImageTwo);
+         addImageFilter->Update();
+
+         OutputImageType::Pointer sumImage = addImageFilter->GetOutput();
+
+         connectionDilateFilter->SetForegroundValue( 2 );
+         connectionDilateFilter->SetKernel(connectionDilateStructElement);
+         connectionDilateFilter->SetInput(connectionDilateFilterOne->GetOutput());
          connectionDilateFilter->Update();
-         contoursImage = connectionDilateFilter->GetOutput();
-         /*newPasteFilter->SetSourceImage(erodeFilter->GetOutput());                                                 
-         newPasteFilter->SetDestinationImage(connCompImage);                                               
-         newPasteFilter->SetSourceRegion(erodeFilter->GetOutput()->GetLargestPossibleRegion());   
-         pasteIndex[2] = i;                 
-         newPasteFilter->SetDestinationIndex(pasteIndex);
-         newPasteFilter->Update();
-         connCompImage = newPasteFilter->GetOutput();*/
+
+         dilateImage = connectionDilateFilter->GetOutput();
+
+         LinearIterator sumIt(sumImage, sumImage->GetRequestedRegion());
+         sumIt.SetDirection(0);
+         sumIt.GoToBegin();
+         while( !sumIt.IsAtEnd() )
+         {
+           while( !sumIt.IsAtEndOfLine() )
+           {
+             if(sumIt.Get() == 3)
+             {
+               dilateImage->SetPixel(sumIt.GetIndex(), 0);
+             }
+             ++sumIt;
+           }
+           sumIt.NextLine();
+         }
+           
+         pixelValue = 0;
+         prevIdx = 0;
+         LinearIterator connIt(dilateImage, dilateImage->GetRequestedRegion());
+         connIt.SetDirection(0);
+         connIt.GoToBegin();
+         while( !connIt.IsAtEnd() )
+         {
+           while( !connIt.IsAtEndOfLine() )
+           {
+             if(connIt.GetIndex()[0] == 270 && connIt.GetIndex()[1] == 258)
+             {
+               std::cout<<pixelValue<<" "<<connIt.Get()<<std::endl;
+             }
+             if(pixelValue > 0 && connIt.Get() > 0 && connIt.Get() != pixelValue)
+             {
+               OutputImageType::IndexType prIdx = connIt.GetIndex();
+               prIdx[0] = prevIdx;
+               dilateImage->SetPixel(prIdx, 0);               
+               dilateImage->SetPixel(connIt.GetIndex(), 0);
+             }
+             pixelValue = connIt.Get();
+             prevIdx = connIt.GetIndex()[0];
+             ++connIt;
+           }
+           pixelValue = 0;
+           prevIdx = 0;
+           connIt.NextLine();
+         }
+
+         connectionIndex[2] = i;
+
+         ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
+         
+         correctedPasteFilter->SetSourceImage(dilateImage);                                                 
+         correctedPasteFilter->SetDestinationImage(ccSbSImageCopy);                                               
+         correctedPasteFilter->SetSourceRegion(dilateImage->GetLargestPossibleRegion());   
+         correctedPasteFilter->SetDestinationIndex(connectionIndex);
+         correctedPasteFilter->Update();
+
+         ccSliceBySliceFilter->SetInput(correctedPasteFilter->GetOutput());
+         ccSliceBySliceFilter->Update();
+         ccSbSImage = ccSliceBySliceFilter->GetOutput();
       }
     }
 
@@ -1232,7 +1354,7 @@ int main( int argc, char * argv[] )
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( OutputVolume.c_str() );
-  writer->SetInput( contoursImage );
+  writer->SetInput( ccSbSImage );
   writer->SetUseCompression(1);
   try
   {   
@@ -1246,5 +1368,7 @@ int main( int argc, char * argv[] )
 	return EXIT_FAILURE;
   }
 
+  clockWriting.Stop();
+  std::cout << "writing: " << clockWriting.GetTotal() << std::endl;
   return EXIT_SUCCESS;
 }
