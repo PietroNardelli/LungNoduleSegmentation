@@ -20,7 +20,7 @@
     </image>
     <image type="label">
       <name>OutputVolume</name>
-      <label>Nodule Volume</label>
+      <label>Lung Label Map</label>
       <channel>output</channel>
       <index>1</index>
       <description><![CDATA[Thresholded input volume]]></description>

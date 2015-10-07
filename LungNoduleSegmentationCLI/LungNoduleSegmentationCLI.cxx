@@ -59,7 +59,7 @@ int main( int argc, char * argv[] )
   typedef signed short							InputPixelType;
   typedef unsigned short						OutputPixelType;
   typedef unsigned int 							LabelType;
-  typedef float								MSOutputPixelType;
+  typedef float									MSOutputPixelType;
 
   typedef itk::Image< InputPixelType,  Dim > 				InputImageType;
   typedef itk::Image< OutputPixelType, Dim > 				OutputImageType;
@@ -105,9 +105,9 @@ int main( int argc, char * argv[] )
   roi[5] = roi[5] *   inputReader->GetOutput()->GetDirection()[2][2];
 
   // Convert bounds into region indices
-  OutputImageType::PointType p1, p2;
-  OutputImageType::IndexType pi1, pi2;
-  OutputImageType::IndexType startIndex;
+  InputImageType::PointType p1, p2;
+  InputImageType::IndexType pi1, pi2;
+  InputImageType::IndexType startIndex;
   for (unsigned int i = 0; i < Dim; i++)
   {
     p1[i] = roi[2*i];
@@ -117,14 +117,14 @@ int main( int argc, char * argv[] )
   inputReader->GetOutput()->TransformPhysicalPointToIndex(p1, pi1);
   inputReader->GetOutput()->TransformPhysicalPointToIndex(p2, pi2);
 
-  OutputImageType::SizeType roiSize;
-  for (unsigned int i = 0; i < Dim; i++)
+  InputImageType::SizeType roiSize;
+  for(unsigned int i = 0; i < Dim; i++)
     {
-    roiSize[i] = fabs(pi2[i] - pi1[i]);
+    roiSize[i] = fabs(static_cast<float>(pi2[i] - pi1[i]));
     startIndex[i] = (pi1[i]<pi2[i])?pi1[i]:pi2[i];
     }
 
-  OutputImageType::RegionType roiRegion( startIndex, roiSize );
+  InputImageType::RegionType roiRegion( startIndex, roiSize );
 
   typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType > ROIFilterType;
 

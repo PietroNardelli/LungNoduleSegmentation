@@ -50,7 +50,6 @@
 #include "itkRelabelComponentImageFilter.h"
 #include "itkThresholdImageFilter.h"
 #include "itkImageSliceIteratorWithIndex.h"
-#include "itkImageRegionConstIteratorWithIndex.h"
 
 #include "itkSliceBySliceImageFilter.h"
 #include "itkMinimumMaximumImageCalculator.h"
@@ -61,30 +60,26 @@
 
 #include "itkTimeProbe.h"
 
+#include "cipChestConventions.h"
+#include "cipChestConventions.cxx"
+
 #include "LungSegmentationCLICLP.h"
 
 const unsigned int Dim = 3;
 
 typedef signed short 	InputPixelType;
-typedef unsigned short 	OutputPixelType;
-typedef unsigned int 	LabelType;
-typedef float		MSOutputPixelType;
+typedef unsigned int 	LabelPixelType;
+typedef float			MSOutputPixelType;
 
 typedef itk::Image< InputPixelType,  Dim > InputImageType;
-typedef itk::Image< OutputPixelType, Dim > OutputImageType;
+typedef itk::Image< LabelPixelType, Dim >  LabelImageType;
 
-OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, InputImageType::IndexType indexFiducialSlice, 
+LabelImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, InputImageType::IndexType indexFiducialSlice, 
                                              InputImageType::IndexType index, int labelColor = 1 )
 {
-    OutputImageType::Pointer airways 		= OutputImageType::New(); 
-    OutputImageType::Pointer airwaysPrev 	= OutputImageType::New();
-	
-    /*airways->SetRegions( image->GetRequestedRegion() );                                   
-    airways->SetBufferedRegion( image->GetBufferedRegion() );
-    airways->SetLargestPossibleRegion( image->GetLargestPossibleRegion() );
-    airways->CopyInformation( image );
-    airways->Allocate();*/
-  		
+    LabelImageType::Pointer airways 		= LabelImageType::New(); 
+    LabelImageType::Pointer airwaysPrev 	= LabelImageType::New();
+	 		
     /** AIRWAYS SEGMENTATION PIPELINE */
     typedef itk::ConnectedThresholdImageFilter< InputImageType, InputImageType > ConnectedFilterType; 
     ConnectedFilterType::Pointer thresholdConnected = ConnectedFilterType::New(); 
@@ -98,7 +93,7 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
     //thresholdConnected->SetLower( -2000 );
     thresholdConnected->SetUpper( UpperThreshold );          
 
-    typedef itk::CastImageFilter<InputImageType, OutputImageType> CastingFilterType;  
+    typedef itk::CastImageFilter<InputImageType, LabelImageType> CastingFilterType;  
     CastingFilterType::Pointer  caster = CastingFilterType::New();		
 	
     caster->SetInput( thresholdConnected->GetOutput() );  
@@ -106,17 +101,17 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
     airways = caster->GetOutput();
     
     /** COMPUTING THE LABEL SIZES */ 	                  
-    OutputImageType::Pointer airwaysAxialCopy = OutputImageType::New(); 
-    OutputImageType::Pointer airwaysCoronalCopy = OutputImageType::New(); 
+    LabelImageType::Pointer airwaysAxialCopy = LabelImageType::New(); 
+    LabelImageType::Pointer airwaysCoronalCopy = LabelImageType::New(); 
 
-    typedef itk::ImageDuplicator<OutputImageType> DuplicatorFilterType;
+    typedef itk::ImageDuplicator<LabelImageType> DuplicatorFilterType;
 
     DuplicatorFilterType::Pointer duplicatorFilter = DuplicatorFilterType::New();
     duplicatorFilter->SetInputImage(airways);
     duplicatorFilter->Update();
 
     // Extracting the axial slice containing the airways fiducial point
-    OutputImageType::SizeType  oneAxialSliceSize;
+    LabelImageType::SizeType  oneAxialSliceSize;
     InputImageType::IndexType  indexAxialSlice = indexFiducialSlice;
   	
     oneAxialSliceSize[0] = airways->GetLargestPossibleRegion().GetSize(0);
@@ -147,19 +142,19 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
         indexAxialSlice  [2] = 0;
     }
 	
-    OutputImageType::RegionType axialSlice;
+    LabelImageType::RegionType axialSlice;
  
-    typedef itk::RegionOfInterestImageFilter< OutputImageType, OutputImageType > ROIFilterType;
+    typedef itk::RegionOfInterestImageFilter< LabelImageType, LabelImageType > ROIFilterType;
     ROIFilterType::Pointer axialAirwaysFilter = ROIFilterType::New();
 
-    typedef itk::BinaryImageToShapeLabelMapFilter< OutputImageType > ShapeLabelType;	
+    typedef itk::BinaryImageToShapeLabelMapFilter< LabelImageType > ShapeLabelType;	
     ShapeLabelType::Pointer axialLabelSizeFilter = ShapeLabelType::New();
 
     axialLabelSizeFilter->SetInputForegroundValue( labelColor );
     axialLabelSizeFilter->SetFullyConnected(1);
 	
     // Extracting the coronal slice containing the airways fiducial point
-    OutputImageType::SizeType oneCoronalSliceSize;
+    LabelImageType::SizeType oneCoronalSliceSize;
     oneCoronalSliceSize[0] = airways->GetLargestPossibleRegion().GetSize(0);
     oneCoronalSliceSize[1] = 1;
     oneCoronalSliceSize[2] = 6;
@@ -175,7 +170,7 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
     {
         indexCoronalSlice[2] = indexFiducialSlice[2];
     }
-    OutputImageType::RegionType coronalSlice;
+    LabelImageType::RegionType coronalSlice;
 
     ROIFilterType::Pointer coronalAirwaysFilter = ROIFilterType::New();
 
@@ -408,7 +403,7 @@ OutputImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Inpu
         
     /** INCREASING THE THRESHOLD ITERATIVELY UNTIL LEAKAGE OCCURS */
 
-    typedef itk::SubtractImageFilter< OutputImageType,OutputImageType,OutputImageType > SubtractLabelImageType; 
+    typedef itk::SubtractImageFilter< LabelImageType,LabelImageType,LabelImageType > SubtractLabelImageType; 
     SubtractLabelImageType::Pointer addedLabel = SubtractLabelImageType::New();
   
     bool overThreshold = 0;
@@ -536,14 +531,13 @@ int main( int argc, char * argv[] )
   itk::TimeProbe clockWriting;
   clockWriting.Start();
 
-  typedef itk::Image< LabelType,       Dim > 				LabelImageType;
-  typedef itk::Image< MSOutputPixelType, Dim > 				MSOutputImageType;
+  typedef itk::Image< MSOutputPixelType, Dim > 						MSOutputImageType;
 
-  typedef itk::ImageFileReader<InputImageType>  			ReaderType;
+  typedef itk::ImageFileReader<InputImageType>						ReaderType;
 
-  typedef itk::BinaryImageToShapeLabelMapFilter< OutputImageType > 	I2LType;
-  typedef I2LType::OutputImageType 					LabelMapType;
-  typedef LabelMapType::LabelObjectType					ShapeLabelObjectType;
+  typedef itk::BinaryImageToShapeLabelMapFilter< LabelImageType >	I2LType;
+  typedef I2LType::OutputImageType 									LabelMapType;
+  typedef LabelMapType::LabelObjectType								ShapeLabelObjectType;
 
   ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( InputVolume.c_str() );
@@ -565,7 +559,7 @@ int main( int argc, char * argv[] )
   medianFilter->SetInput( inputImage );
 
   // Binarize the image based on the specified threshold
-  typedef itk::BinaryThresholdImageFilter< InputImageType, OutputImageType > BinaryThresholdFilterType;
+  typedef itk::BinaryThresholdImageFilter< InputImageType, LabelImageType > BinaryThresholdFilterType;
   BinaryThresholdFilterType::Pointer binaryThresholdFilter = BinaryThresholdFilterType::New();
   binaryThresholdFilter->SetInput( 0, medianFilter->GetOutput() );
   binaryThresholdFilter->SetInsideValue( lungsColor );
@@ -574,7 +568,7 @@ int main( int argc, char * argv[] )
   binaryThresholdFilter->SetUpperThreshold(Upper);
   
   // Remove holes not connected to the boundary of the image.
-  typedef itk::BinaryFillholeImageFilter< OutputImageType > FillHolesFilterType;
+  typedef itk::BinaryFillholeImageFilter< LabelImageType > FillHolesFilterType;
   FillHolesFilterType::Pointer holeFillingFilter = FillHolesFilterType::New();
   holeFillingFilter->SetInput( binaryThresholdFilter->GetOutput() );
   holeFillingFilter->SetForegroundValue( lungsColor );
@@ -613,14 +607,14 @@ int main( int argc, char * argv[] )
   
   //std::cout << "Number of objects afterwards: " << labelMap->GetNumberOfLabelObjects() << std::endl;
 
-  typedef itk::LabelMapToBinaryImageFilter< LabelMapType, OutputImageType > LabelMapToBinaryImageType; 
+  typedef itk::LabelMapToBinaryImageFilter< LabelMapType, LabelImageType > LabelMapToBinaryImageType; 
   LabelMapToBinaryImageType::Pointer labelToBinaryFilter = LabelMapToBinaryImageType::New();
   labelToBinaryFilter->SetInput( labelMap );
   labelToBinaryFilter->SetBackgroundValue( 0 );
   labelToBinaryFilter->SetForegroundValue( lungsColor );  
   labelToBinaryFilter->Update();
 
-  typedef itk::ImageDuplicator<OutputImageType> LungDuplicatorFilterType;
+  typedef itk::ImageDuplicator<LabelImageType> LungDuplicatorFilterType;
 
   LungDuplicatorFilterType::Pointer lungDuplicatorFilter = LungDuplicatorFilterType::New();
   lungDuplicatorFilter->SetInputImage(labelToBinaryFilter->GetOutput());
@@ -638,16 +632,16 @@ int main( int argc, char * argv[] )
   //std::cout<<"Zposition: "<<Zposition<<std::endl;
 
   // Extract a slice to find the trachea location
-  OutputImageType::SizeType sliceSize = clonedInput->GetLargestPossibleRegion().GetSize();
+  LabelImageType::SizeType sliceSize = clonedInput->GetLargestPossibleRegion().GetSize();
   sliceSize[2] = 1;
 
-  OutputImageType::IndexType sliceIndex;
+  LabelImageType::IndexType sliceIndex;
   sliceIndex.Fill(0);
   sliceIndex[2] = Zposition;
 
-  OutputImageType::RegionType sliceRegion( sliceIndex, sliceSize );
+  LabelImageType::RegionType sliceRegion( sliceIndex, sliceSize );
 
-  typedef itk::RegionOfInterestImageFilter< OutputImageType, OutputImageType > ROIFilterType;
+  typedef itk::RegionOfInterestImageFilter< LabelImageType, LabelImageType > ROIFilterType;
 
   ROIFilterType::Pointer sliceExtractor = ROIFilterType::New();
   sliceExtractor->SetRegionOfInterest( sliceRegion );
@@ -739,17 +733,17 @@ int main( int argc, char * argv[] )
 
   //std::cout<<"index: "<<airwayIndex<<std::endl;
 
-  OutputImageType::Pointer airwayImage = AirwaySegmentation(airwayROIFilter->GetOutput(), fiducialSlice, croppedAirwayIndex, lungsColor);
+  LabelImageType::Pointer airwayImage = AirwaySegmentation(airwayROIFilter->GetOutput(), fiducialSlice, croppedAirwayIndex, lungsColor);
 
   // Remove small (i.e., smaller than the structuring element) holes and tube like structures in the interior or at the boundaries of the image.
-  typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim > StructuringElementType;  	
+  typedef itk::BinaryBallStructuringElement< LabelPixelType, Dim > StructuringElementType;  	
   StructuringElementType structElement;
   StructuringElementType::SizeType radius;
   radius.Fill( 10 );
   structElement.SetRadius( radius );
   structElement.CreateStructuringElement();
 	
-  typedef itk::BinaryMorphologicalClosingImageFilter < OutputImageType, OutputImageType, StructuringElementType > ClosingFilterType;
+  typedef itk::BinaryMorphologicalClosingImageFilter < LabelImageType, LabelImageType, StructuringElementType > ClosingFilterType;
   ClosingFilterType::Pointer airwayClosing = ClosingFilterType::New();
 
   airwayClosing->SetInput( airwayImage );
@@ -759,183 +753,7 @@ int main( int argc, char * argv[] )
   airwayClosing->Update();
   airwayImage = airwayClosing->GetOutput();
  
-  /* FINDING THE CARINA 
-  clonedInput = inputDuplicator->GetOutput();
-  int          value;
-  int          xDist;
-  int          yDist; 
-
-  unsigned int xCarinaPosition = 0;
-  unsigned int yCarinaPosition = 0;
-  unsigned int carinaIdx       = 0;
-
-  InputImageType::IndexType carinaIdxPrevSlice;
-  carinaIdxPrevSlice.Fill(0);
-  InputImageType::IndexType tmpIdx;
-  tmpIdx.Fill(0);
-
-  typedef itk::ImageSliceIteratorWithIndex<OutputImageType> SliceIterator;
-  SliceIterator sIt(airwayImage, airwayImage->GetLargestPossibleRegion());
-
-  sIt.SetFirstDirection(0);
-  sIt.SetSecondDirection(1);
-
-  sIt.GoToBegin();
-        
-  unsigned int limit = fiducialSlice[2] - 5;
- 
-  while( sIt.GetIndex()[2] < limit )
-  {
-    unsigned int yMaxPos     = 0;
-    unsigned int yMinPos     = airwayImage->GetLargestPossibleRegion().GetSize(1); 
-
-    unsigned int yMidPos     = 0; 
-
-    unsigned int yCurrentMax = 0;
-    unsigned int yCurrentMin = 0;
-
-    unsigned int prevPos     = 0;
-    unsigned int prevLine    = 0;
-    
-    unsigned int prevDiff    = 0;
-
-    while( !sIt.IsAtEndOfSlice() )
-    {
-        while( !sIt.IsAtEndOfLine() )
-        {
-            value = sIt.Get();
-            if( value == lungsColor )
-            {
-	      double d = sIt.GetIndex()[1] - prevLine;
-              yDist = abs(d);
-              if( prevLine != 0 && yDist <= 5 )
-                {
-                    if( sIt.GetIndex()[1] > yMaxPos )
-                    {
-                        yMaxPos = sIt.GetIndex()[1];
-                    }
-                    if( sIt.GetIndex()[1] < yMinPos )
-                    {
-                        yMinPos = sIt.GetIndex()[1];
-                    }
-                    prevLine = sIt.GetIndex()[1];
-
-                    unsigned int diff = yMaxPos - yMinPos;
-                    if( diff > prevDiff)
-                    {
-                        yCurrentMax = yMaxPos;
-                        yCurrentMin = yMinPos;
-                     }
-                }
-                else if( prevLine != 0 && yDist >= 5 )
-                {
-                    prevDiff = yCurrentMax - yCurrentMin;
-
-                    yMinPos = airwayImage->GetLargestPossibleRegion().GetSize(1); 
-                    yMaxPos = 0; 
-                    if( sIt.GetIndex()[1] > yMaxPos )
-                    {
-                        yMaxPos = sIt.GetIndex()[1];
-                    }
-                    if( sIt.GetIndex()[1] < yMinPos )
-                    {
-                        yMinPos = sIt.GetIndex()[1];
-                    }
-                }
-                prevLine = sIt.GetIndex()[1];
-            }
-            ++sIt;
-        }
-        sIt.NextLine();
-    }
-
-    if( yCurrentMax > yCurrentMin )
-    {
-        yMidPos = yCurrentMin + (yCurrentMax - yCurrentMin) / 2;
-    }
-
-    sIt.GoToBeginOfSlice();
-    while( !sIt.IsAtEndOfSlice() )
-    {
-        while( !sIt.IsAtEndOfLine() )
-        {
-            value = sIt.Get();
-            if( value == lungsColor )
-            {
-                xDist = sIt.GetIndex()[0] - prevPos;
-                if( prevPos != 0 && sIt.GetIndex()[1] == yMidPos 
-                    && xDist >= 10 && xDist < 20
-                    && sIt.GetIndex()[0] > int(cropSize[0]/3) )
-                {
-                    carinaIdx       = sIt.GetIndex()[2];
-                    xCarinaPosition = prevPos + (xDist/2);
-                    yCarinaPosition = yMidPos;
-                }
-                prevPos = sIt.GetIndex()[0];
-            }
-            ++sIt;
-        }
-        sIt.NextLine();
-    }        
-      carinaIdxPrevSlice[0] = xCarinaPosition; 
-      carinaIdxPrevSlice[1] = yCarinaPosition;
-      carinaIdxPrevSlice[2] = carinaIdx;
-
-      sIt.NextSlice();
-  }
-
-  carinaIdx -= 10;
-  cropSize[2] -= carinaIdx;
-  cropIndex[2] += carinaIdx;
-  fiducialSlice[2] = cropSize[2] - ( clonedInput->GetLargestPossibleRegion().GetSize(2) - airwayIndex[2] ); 
-
-  fidPs  = double( fiducialSlice[2] );
-  trSz   = double( cropSize[2] );
-  ratio  = fidPs/trSz;
-
-  if(ratio >= 0.85)
-  {
-      fiducialSlice[2] = cropSize[2]*0.8;
-  }
-
-  bool exit = 0;
-  sIt.GoToBegin();
-        
-  while( !exit && !sIt.IsAtEnd() )
-  {
-      while( !exit && !sIt.IsAtEndOfSlice() )
-      {
-          while( !exit && !sIt.IsAtEndOfLine() )
-          {
-              value = sIt.Get();
-              if( value == lungsColor && sIt.GetIndex()[2] >= (carinaIdx + 10 ) && sIt.GetIndex()[2] <= (cropSize[2] - 5) )
-              {
-                  if( sIt.GetIndex()[0] == 0 || sIt.GetIndex()[0] == cropSize[0] )
-                  {
-                      cropSize[0] += 10; 
-                      cropIndex[0] -= 5;
-                      xCarinaPosition += 5;
-                      exit = 1;
-                  }
-              }
-              ++sIt;
-          }
-          sIt.NextLine();
-      }
-      sIt.NextSlice();
-  }
-
-  cropRegion.SetSize(  cropSize  );                                                                
-  cropRegion.SetIndex( cropIndex );                                                          
-
-  airwayROIFilter->SetInput( clonedInput );						          
-  airwayROIFilter->SetRegionOfInterest( cropRegion );					 
-  airwayROIFilter->Update();
-
-  airwayROIFilter->GetOutput()->TransformPhysicalPointToIndex(centroid, croppedAirwayIndex);
-  airwayImage = AirwaySegmentation(airwayROIFilter->GetOutput(), fiducialSlice, croppedAirwayIndex, lungsColor);*/
-
-  typedef itk::BinaryDilateImageFilter <OutputImageType, OutputImageType, StructuringElementType> BinaryDilateImageFilterType;
+  typedef itk::BinaryDilateImageFilter <LabelImageType, LabelImageType, StructuringElementType> BinaryDilateImageFilterType;
   BinaryDilateImageFilterType::Pointer dilateFilter = BinaryDilateImageFilterType::New();
   dilateFilter->SetInput(airwayImage);
   radius.Fill( 5 );
@@ -945,16 +763,16 @@ int main( int argc, char * argv[] )
   dilateFilter->SetKernel(structElement);
   dilateFilter->Update();
 
-  OutputImageType::Pointer pasteImage = OutputImageType::New(); 
+  LabelImageType::Pointer pasteImage = LabelImageType::New(); 
 
   pasteImage->SetRegions( inputImage->GetRequestedRegion() );                                   
   pasteImage->SetBufferedRegion( inputImage->GetBufferedRegion() );
   pasteImage->SetLargestPossibleRegion( inputImage->GetLargestPossibleRegion() );
   pasteImage->CopyInformation( inputImage );
   pasteImage->Allocate();
-  pasteImage->FillBuffer(itk::NumericTraits< OutputPixelType >::Zero); 
+  pasteImage->FillBuffer(itk::NumericTraits< LabelPixelType >::Zero); 
 
-  typedef itk::PasteImageFilter< OutputImageType, OutputImageType > PasteImageFilterType;
+  typedef itk::PasteImageFilter< LabelImageType, LabelImageType > PasteImageFilterType;
   PasteImageFilterType::Pointer pasteFilter = PasteImageFilterType::New();  
       
   pasteFilter->SetSourceImage(dilateFilter->GetOutput());                                                 
@@ -962,29 +780,29 @@ int main( int argc, char * argv[] )
   pasteFilter->SetSourceRegion(dilateFilter->GetOutput()->GetLargestPossibleRegion());                    
   pasteFilter->SetDestinationIndex(cropIndex);
 
-  OutputImageType::Pointer lungImage = lungDuplicatorFilter->GetOutput();
+  LabelImageType::Pointer lungImage = lungDuplicatorFilter->GetOutput();
 
-  typedef itk::NotImageFilter<OutputImageType,OutputImageType> NotImageFilterType;
+  typedef itk::NotImageFilter<LabelImageType,LabelImageType> NotImageFilterType;
   NotImageFilterType::Pointer notFilter = NotImageFilterType::New();
   notFilter->SetInput(pasteFilter->GetOutput());
 
-  typedef itk::AndImageFilter<OutputImageType> AndImageFilterType;
+  typedef itk::AndImageFilter<LabelImageType> AndImageFilterType;
   AndImageFilterType::Pointer andFilter  = AndImageFilterType::New();
   andFilter->SetInput(0, lungImage);
   andFilter->SetInput(1, notFilter->GetOutput());
 
-  typedef itk::ConnectedComponentImageFilter <OutputImageType, OutputImageType> ConnectedComponentImageFilterType;
+  typedef itk::ConnectedComponentImageFilter <LabelImageType, LabelImageType> ConnectedComponentImageFilterType;
 
   ConnectedComponentImageFilterType::Pointer connectedComponentFilter = ConnectedComponentImageFilterType::New ();
   connectedComponentFilter->SetInput(andFilter->GetOutput());
 
-  typedef itk::RelabelComponentImageFilter<OutputImageType, OutputImageType> RelabelImageFilterType;
+  typedef itk::RelabelComponentImageFilter<LabelImageType, LabelImageType> RelabelImageFilterType;
   RelabelImageFilterType::Pointer relabelFilter = RelabelImageFilterType::New();
 
   relabelFilter->SetInput(connectedComponentFilter->GetOutput());
   relabelFilter->SetMinimumObjectSize(5000);  
 
-  typedef itk::ThresholdImageFilter<OutputImageType> ThresholdImageFilterType;
+  typedef itk::ThresholdImageFilter<LabelImageType> ThresholdImageFilterType;
   ThresholdImageFilterType::Pointer thresholdFilter = ThresholdImageFilterType::New();
 
   thresholdFilter->SetInput(relabelFilter->GetOutput());
@@ -994,7 +812,7 @@ int main( int argc, char * argv[] )
   ConnectedComponentImageFilterType::Pointer lungsCCFilter = ConnectedComponentImageFilterType::New();
   lungsCCFilter->SetInput(thresholdFilter->GetOutput());
   lungsCCFilter->Update();
-  OutputImageType::Pointer connCompImage = lungsCCFilter->GetOutput();
+  LabelImageType::Pointer connCompImage = lungsCCFilter->GetOutput();
 
   clockWriting.Stop();
   std::cout << "Lung Segm.: " << clockWriting.GetTotal() << std::endl;
@@ -1002,34 +820,7 @@ int main( int argc, char * argv[] )
   itk::TimeProbe clockSeparation;
   clockSeparation.Start();
 
-  /** Separate connected lungs */
-  /*typedef itk::SliceBySliceImageFilter<OutputImageType, OutputImageType> ClosingSliceBySliceFilterType;
-  typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim-1 > lungsStructuringElementType;  	
-  lungsStructuringElementType lungsStructElement;
-  lungsStructuringElementType::SizeType lungsRadius;
-  lungsRadius.Fill( 4 );
-  lungsStructElement.SetRadius( lungsRadius );
-  lungsStructElement.CreateStructuringElement();
-	
-  typedef itk::BinaryMorphologicalClosingImageFilter < ClosingSliceBySliceFilterType::InternalInputImageType, ClosingSliceBySliceFilterType::InternalOutputImageType, lungsStructuringElementType > lungsClosingFilterType;
-  lungsClosingFilterType::Pointer lungClosingFilter = lungsClosingFilterType::New();
-
-  lungClosingFilter->SetKernel( lungsStructElement );
-
-  ClosingSliceBySliceFilterType::Pointer closingSbSFilter = ClosingSliceBySliceFilterType::New();
-  closingSbSFilter->SetDimension(2);
-
-  for(unsigned int i = 1; i <= 2; ++i)
-  {
-    closingSbSFilter->SetInput(connCompImage);
-    lungClosingFilter->SetForegroundValue( i );
-    closingSbSFilter->SetFilter(lungClosingFilter);
-    closingSbSFilter->Update();
-
-    connCompImage = closingSbSFilter->GetOutput();
-  }*/
-
-  typedef itk::Image< OutputPixelType, Dim-1 > SliceOutputImageType;
+  typedef itk::Image< LabelPixelType, Dim-1 > SliceOutputImageType;
   typedef itk::ConnectedComponentImageFilter <SliceOutputImageType, SliceOutputImageType>  SbSCCImageFilterType;
   SbSCCImageFilterType::Pointer SbSCCFilter = SbSCCImageFilterType::New();
 
@@ -1039,7 +830,7 @@ int main( int argc, char * argv[] )
   SbSRelabelFilter->SetInput(SbSCCFilter->GetOutput());
   SbSRelabelFilter->SetMinimumObjectSize(2000); 
 
-  typedef itk::SliceBySliceImageFilter<OutputImageType, OutputImageType, SbSCCImageFilterType, SbSRelabelImageFilterType > CCSliceBySliceFilterType;
+  typedef itk::SliceBySliceImageFilter<LabelImageType, LabelImageType, SbSCCImageFilterType, SbSRelabelImageFilterType > CCSliceBySliceFilterType;
 
   CCSliceBySliceFilterType::Pointer ccSliceBySliceFilter = CCSliceBySliceFilterType::New();
   ccSliceBySliceFilter->SetInput(connCompImage);
@@ -1047,15 +838,15 @@ int main( int argc, char * argv[] )
   ccSliceBySliceFilter->SetOutputFilter(SbSRelabelFilter);
   ccSliceBySliceFilter->SetDimension(2);
   ccSliceBySliceFilter->Update();
-  OutputImageType::Pointer ccSbSImage = ccSliceBySliceFilter->GetOutput();
+  LabelImageType::Pointer ccSbSImage = ccSliceBySliceFilter->GetOutput();
 
-  typedef itk::ImageDuplicator<OutputImageType> DuplicatorFilterType;
+  typedef itk::ImageDuplicator<LabelImageType> DuplicatorFilterType;
   DuplicatorFilterType::Pointer ccSbSDuplicatorFilter = DuplicatorFilterType::New();
   ccSbSDuplicatorFilter->SetInputImage(ccSbSImage);
   ccSbSDuplicatorFilter->Update();
-  OutputImageType::Pointer ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
+  LabelImageType::Pointer ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
 
-  typedef itk::RegionOfInterestImageFilter< OutputImageType, OutputImageType > SbSROIFilterType;  
+  typedef itk::RegionOfInterestImageFilter< LabelImageType, LabelImageType > SbSROIFilterType;  
   SbSROIFilterType::Pointer SbSExtractor = SbSROIFilterType::New();
   SbSExtractor->SetInput(ccSbSImage);
   InputImageType::SizeType SbSSize = ccSbSImage->GetLargestPossibleRegion().GetSize();
@@ -1065,7 +856,7 @@ int main( int argc, char * argv[] )
   InputImageType::RegionType SbSRegion;
   SbSRegion.SetSize( SbSSize );                                                                
 
-  typedef itk::MinimumMaximumImageCalculator<OutputImageType> MinMaxCalculatorType;
+  typedef itk::MinimumMaximumImageCalculator<LabelImageType> MinMaxCalculatorType;
 
   unsigned int imageSize = ccSbSImage->GetLargestPossibleRegion().GetSize(2);
 
@@ -1073,7 +864,7 @@ int main( int argc, char * argv[] )
   slice2labels->SetFullyConnected( 1 );
   slice2labels->SetComputeFeretDiameter( 0 );
 
-  typedef itk::LabelContourImageFilter<OutputImageType,OutputImageType> LabelContourFilterType;
+  typedef itk::LabelContourImageFilter<LabelImageType,LabelImageType> LabelContourFilterType;
 
   SbSROIFilterType::Pointer SbSPrevSliceExtractor = SbSROIFilterType::New();
   SbSPrevSliceExtractor->SetInput(ccSbSImageCopy);
@@ -1082,19 +873,19 @@ int main( int argc, char * argv[] )
   InputImageType::RegionType SbSPrevRegion;
   SbSPrevRegion.SetSize( SbSSize );
  
-  typedef itk::ImageLinearConstIteratorWithIndex<OutputImageType> LinearIterator;
+  typedef itk::ImageLinearConstIteratorWithIndex<LabelImageType> LinearIterator;
 
-  typedef itk::BinaryErodeImageFilter <OutputImageType, OutputImageType, StructuringElementType> BinaryErodeImageFilterType;
+  typedef itk::BinaryErodeImageFilter <LabelImageType, LabelImageType, StructuringElementType> BinaryErodeImageFilterType;
 
-  typedef itk::AddImageFilter<OutputImageType, OutputImageType> AddImageFilterType;
+  typedef itk::AddImageFilter<LabelImageType, LabelImageType> AddImageFilterType;
 
   ConnectedComponentImageFilterType::Pointer finalCCFilter = ConnectedComponentImageFilterType::New();
   RelabelImageFilterType::Pointer finalRelabelFilter = RelabelImageFilterType::New();
 
-  OutputImageType::PixelType pixelValue;
-  OutputImageType::PixelType minDist;
-  OutputImageType::PixelType prevIdx;  
-  OutputImageType::IndexType minDistIdx;
+  LabelImageType::PixelType pixelValue;
+  LabelImageType::PixelType minDist;
+  LabelImageType::PixelType prevIdx;  
+  LabelImageType::IndexType minDistIdx;
   bool firstIteration;
 
   MinMaxCalculatorType::Pointer minMaxCalculator = MinMaxCalculatorType::New();
@@ -1125,16 +916,16 @@ int main( int argc, char * argv[] )
     SbSExtractor->SetInput(ccSbSImageCopy);		 
     SbSExtractor->Update();
 
-    OutputImageType::Pointer extractedImage = SbSExtractor->GetOutput();
+    LabelImageType::Pointer extractedImage = SbSExtractor->GetOutput();
 
     minMaxCalculator->SetImage(extractedImage);
     minMaxCalculator->ComputeMaximum();
-    OutputImageType::PixelType maxValue = minMaxCalculator->GetMaximum();
+    LabelImageType::PixelType maxValue = minMaxCalculator->GetMaximum();
 
     firstIteration = 1;
 
-    OutputImageType::Pointer extractedSbSImageCopy;
-    OutputImageType::Pointer prevSlice;
+    LabelImageType::Pointer extractedSbSImageCopy;
+    LabelImageType::Pointer prevSlice;
 
     if( maxValue == 1 )
     {
@@ -1166,7 +957,7 @@ int main( int argc, char * argv[] )
           labelContourFilter->SetInput(extractorPrevDuplicatorFilter->GetOutput());
           labelContourFilter->SetFullyConnected(0);
           labelContourFilter->Update();
-          OutputImageType::Pointer contoursImage = labelContourFilter->GetOutput();      
+          LabelImageType::Pointer contoursImage = labelContourFilter->GetOutput();      
 
           pixelValue = 1;
           minDist = itk::NumericTraits< float >::max();;
@@ -1226,7 +1017,7 @@ int main( int argc, char * argv[] )
           connectionExtractor->SetInput(extractedImage);
           connectionExtractor->SetRegionOfInterest( connectionRegion );		 
           connectionExtractor->Update(); 
-          OutputImageType::Pointer connectionImage = connectionExtractor->GetOutput();
+          LabelImageType::Pointer connectionImage = connectionExtractor->GetOutput();
 
           // Connection erosion
           StructuringElementType connectionErodeStructElement;
@@ -1242,7 +1033,7 @@ int main( int argc, char * argv[] )
           connectionErodeFilter->SetInput(connectionExtractor->GetOutput());
           connectionErodeFilter->Update();
 
-          OutputImageType::Pointer erodeImage = connectionErodeFilter->GetOutput();
+          LabelImageType::Pointer erodeImage = connectionErodeFilter->GetOutput();
 
           connectionCCFilter->SetInput(erodeImage);
           connectionCCFilter->Update();
@@ -1273,27 +1064,27 @@ int main( int argc, char * argv[] )
           connectionDilateFilterOne->SetKernel(connectionDilateStructElement);
           connectionDilateFilterOne->SetInput(connectionCCFilter->GetOutput());
           connectionDilateFilterOne->Update();
-          OutputImageType::Pointer dilateImageOne = connectionDilateFilterOne->GetOutput();
+          LabelImageType::Pointer dilateImageOne = connectionDilateFilterOne->GetOutput();
         
           connectionDilateFilterTwo->SetForegroundValue( 2 );
           connectionDilateFilterTwo->SetKernel(connectionDilateStructElement);
           connectionDilateFilterTwo->SetInput(connectionCCFilter->GetOutput());
           connectionDilateFilterTwo->Update();      
 
-          OutputImageType::Pointer dilateImageTwo = connectionDilateFilterTwo->GetOutput();
+          LabelImageType::Pointer dilateImageTwo = connectionDilateFilterTwo->GetOutput();
    
           addImageFilter->SetInput1(dilateImageOne);
           addImageFilter->SetInput2(dilateImageTwo);
           addImageFilter->Update();
  
-          OutputImageType::Pointer sumImage = addImageFilter->GetOutput();
+          LabelImageType::Pointer sumImage = addImageFilter->GetOutput();
 
           connectionDilateFilter->SetForegroundValue( 2 );
           connectionDilateFilter->SetKernel(connectionDilateStructElement);
           connectionDilateFilter->SetInput(connectionDilateFilterOne->GetOutput());
           connectionDilateFilter->Update();
  
-          OutputImageType::Pointer dilateImage = connectionDilateFilter->GetOutput();
+          LabelImageType::Pointer dilateImage = connectionDilateFilter->GetOutput();
 
           LinearIterator sumIt(sumImage, sumImage->GetRequestedRegion());
           sumIt.SetDirection(0);
@@ -1322,7 +1113,7 @@ int main( int argc, char * argv[] )
             {
               if(pixelValue > 0 && connIt.Get() > 0 && connIt.Get() != pixelValue)
               {
-                OutputImageType::IndexType prIdx = connIt.GetIndex();
+                LabelImageType::IndexType prIdx = connIt.GetIndex();
                 prIdx[0] = prevIdx;
                 dilateImage->SetPixel(prIdx, 0);               
                 dilateImage->SetPixel(connIt.GetIndex(), 0);
@@ -1361,7 +1152,7 @@ int main( int argc, char * argv[] )
 
           if( maxValue == 1 )
           {
-            connectionImage->FillBuffer(itk::NumericTraits< OutputPixelType >::Zero);
+            connectionImage->FillBuffer(itk::NumericTraits< LabelPixelType >::Zero);
             maskPasteFilter->SetSourceImage(connectionImage);                                                 
             maskPasteFilter->SetDestinationImage(prevSlice);                                               
             maskPasteFilter->SetSourceRegion(connectionImage->GetLargestPossibleRegion());   
@@ -1375,7 +1166,7 @@ int main( int argc, char * argv[] )
 
           extractedImageDuplicator->SetInputImage(extractedImage);
           extractedImageDuplicator->Update();
-          OutputImageType::Pointer extractedImageCopy = extractedImageDuplicator->GetOutput();
+          LabelImageType::Pointer extractedImageCopy = extractedImageDuplicator->GetOutput();
           
           ccSbSDuplicatorFilter->Update();
           ccSbSImageCopy = ccSbSDuplicatorFilter->GetOutput();
@@ -1408,17 +1199,10 @@ int main( int argc, char * argv[] )
   relFilter->SetMinimumObjectSize(5000);
   relFilter->Update();
 
-  /*ThresholdImageFilterType::Pointer threshFilter = ThresholdImageFilterType::New();
-
-  threshFilter->SetInput(relFilter->GetOutput());
-  threshFilter->ThresholdOutside(0,2);
-  threshFilter->SetOutsideValue(0);
-  threshFilter->Update();*/
-
   connCompImage = relFilter->GetOutput();
 
-  typedef itk::SliceBySliceImageFilter<OutputImageType, OutputImageType> ClosingSliceBySliceFilterType;
-  typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim-1 > lungsStructuringElementType;  	
+  typedef itk::SliceBySliceImageFilter<LabelImageType, LabelImageType> ClosingSliceBySliceFilterType;
+  typedef itk::BinaryBallStructuringElement< LabelPixelType, Dim-1 > lungsStructuringElementType;  	
   lungsStructuringElementType lungsStructElement;
   lungsStructuringElementType::SizeType lungsRadius;
   lungsRadius.Fill( 15 );
@@ -1446,21 +1230,203 @@ int main( int argc, char * argv[] )
   clockSeparation.Stop();
   std::cout << "Lung Separation.: " << clockSeparation.GetTotal() << std::endl;
 
-  typedef itk::ImageFileWriter<OutputImageType> WriterType;
+  //
+  // First set all types to 'UNDEFINEDTYPE'. This is necessary in the
+  // case that, e.g., airways are present, connecting the left and
+  // right lungs
+  //
+
+  cip::ChestConventions conventions;
+  
+  typedef itk::ImageRegionIteratorWithIndex< LabelImageType > LabelMapIteratorType;
+  LabelMapIteratorType mIt( connCompImage, connCompImage->GetBufferedRegion() );
+
+  unsigned char cipRegion;
+
+  mIt.GoToBegin();
+  while ( !mIt.IsAtEnd() )
+  {
+	  if ( mIt.Get() != 0 )
+	  {
+		  cipRegion = conventions.GetChestRegionFromValue( mIt.Get() );
+		  mIt.Set( conventions.GetValueFromChestRegionAndType( cipRegion, static_cast< unsigned char >( cip::UNDEFINEDTYPE ) ) );
+	  }
+	  ++mIt;
+  }
+
+  connectedComponentFilter->SetInput( connCompImage );
+  connectedComponentFilter->Update();
+
+  relabelFilter->SetInput( connectedComponentFilter->GetOutput() );
+  try
+  {
+	  relabelFilter->Update();
+  }
+  catch ( itk::ExceptionObject &excp )
+  {
+	  std::cerr << "Exception caught relabeling:";
+	  std::cerr << excp << std::endl;
+  }
+
+  unsigned int total = 0;
+  for ( unsigned int i = 0; i < relabelFilter->GetNumberOfObjects(); i++ )
+  {
+	  total += relabelFilter->GetSizeOfObjectsInPixels()[i];
+  }
+
+  LabelImageType::Pointer relabeledLungLabelMap = relabelFilter->GetOutput();
+  //
+  // If we're here, we assume that the left and right have been
+  // separated, so label them. First, we need to get the relabel
+  // component corresponding to the left and the right. We assume that
+  // the relabel component value = 1 corresponds to one of the two
+  // lungs and a value of 2 corresponds to the other. Find the
+  // left-most and right-most component value. Assuming the scan is
+  // supine, head-first, the component value corresponding to the
+  // smallest x-index will be the left lung and the other major
+  // component will be the right lung.
+  //
+  unsigned int minX = relabeledLungLabelMap->GetBufferedRegion().GetSize()[0];
+  unsigned int maxX = 0;
+
+  unsigned int smallIndexComponentLabel, largeIndexComponentLabel;
+
+  LabelMapIteratorType rIt( relabeledLungLabelMap, relabeledLungLabelMap->GetBufferedRegion() );
+
+  rIt.GoToBegin();
+  while ( !rIt.IsAtEnd() )
+  {
+	  if ( rIt.Get() == 1 || rIt.Get() == 2 )
+	  {
+		  if ( rIt.GetIndex()[0] < minX )
+		  {
+			  smallIndexComponentLabel = rIt.Get();
+			  minX = rIt.GetIndex()[0];
+		  }
+		  if ( rIt.GetIndex()[0] > maxX )
+		  {
+			  largeIndexComponentLabel = rIt.Get();
+			  maxX = rIt.GetIndex()[0];
+		  }
+	  }	  
+	  ++rIt;
+  }
+
+  unsigned int leftLungComponentLabel, rightLungComponentLabel;
+  //if ( (this->HeadFirst && this->Supine) || (this->FeetFirst && this->Prone) )
+    //{
+    leftLungComponentLabel  = largeIndexComponentLabel;
+    rightLungComponentLabel = smallIndexComponentLabel;
+    //}
+  //else
+    //{
+    //leftLungComponentLabel  = smallIndexComponentLabel;
+    //rightLungComponentLabel = largeIndexComponentLabel;
+    //}
+
+  mIt.GoToBegin();
+  rIt.GoToBegin();
+  while ( !mIt.IsAtEnd() )
+  {
+	  if ( rIt.Get() == leftLungComponentLabel )
+	  {
+		  mIt.Set( static_cast< unsigned short >( cip::LEFTLUNG ) );
+	  }
+	  if ( rIt.Get() == rightLungComponentLabel )
+      {
+		  mIt.Set( static_cast< unsigned short >( cip::RIGHTLUNG ) );
+      }
+	  ++rIt;
+	  ++mIt;
+  }
+
+  //
+  // Get the number of voxels in the label map
+  //
+  unsigned int totalVoxelCount = 0;
+ 
+  mIt.GoToBegin();
+  while ( !mIt.IsAtEnd() )
+  {
+	  if ( mIt.Get() != 0 )
+	  {
+		  totalVoxelCount++;
+      }
+	  ++mIt;
+  }
+
+  //
+  // Label by thirds the lung label map
+  //
+  bool foundLeftLung  = false;
+  bool foundRightLung = false;
+  unsigned int voxelCount = 0;
+
+  mIt.GoToBegin();
+  while ( !mIt.IsAtEnd() )
+  {
+	  if ( mIt.Get() != 0 )
+	  {
+		  voxelCount++;
+		  
+		  if ( static_cast< double >( voxelCount ) < static_cast< double >( totalVoxelCount )/3.0 )
+		  {
+			  if ( mIt.Get() == static_cast< unsigned short >( cip::LEFTLUNG ) )
+			  {
+				  foundLeftLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::LEFTLOWERTHIRD ) );
+			  }
+			  else
+			  {
+				  foundRightLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::RIGHTLOWERTHIRD ) );
+			  }
+		  }
+		  else if ( static_cast< double >( voxelCount ) < 2.0*static_cast< double >( totalVoxelCount )/3.0 )
+		  {
+			  if ( mIt.Get() == static_cast< unsigned short >( cip::LEFTLUNG ) )
+			  {
+				  foundLeftLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::LEFTMIDDLETHIRD ) );
+			  }
+			  else
+			  {
+				  foundRightLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::RIGHTMIDDLETHIRD ) );
+			  }
+		  }
+		  else
+		  {
+			  if ( mIt.Get() == static_cast< unsigned short >( cip::LEFTLUNG ) )
+			  {
+				  foundLeftLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::LEFTUPPERTHIRD ) );
+			  }
+			  else
+			  {
+				  foundRightLung = true;
+				  mIt.Set( static_cast< unsigned short >( cip::RIGHTUPPERTHIRD ) );
+			  }
+		  }
+	  }
+	  ++mIt;
+  }   
+
+  typedef itk::ImageFileWriter<LabelImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( OutputVolume.c_str() );
   writer->SetInput( connCompImage );
   writer->SetUseCompression(1);
   try
   {   
-        writer->Update();
+	  writer->Update();
   }
   catch ( itk::ExceptionObject & e )
   {
-    	std::cerr << "exception in file writer " << std::endl;
-	std::cerr << e.GetDescription() << std::endl;
-	std::cerr << e.GetLocation() << std::endl;
-	return EXIT_FAILURE;
+	  std::cerr << "exception in file writer " << std::endl;
+	  std::cerr << e.GetDescription() << std::endl;
+	  std::cerr << e.GetLocation() << std::endl;
+	  return EXIT_FAILURE;
   }
 
   return EXIT_SUCCESS;

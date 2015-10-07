@@ -1,15 +1,16 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME LungSegmentationCLI)
+set(MODULE_NAME LungFissureSegmentationCLI)
 
 #-----------------------------------------------------------------------------
-
-#INCLUDE_DIRECTORIES(include)
 
 #
 # SlicerExecutionModel
 #
+
 find_package(SlicerExecutionModel REQUIRED)
 include(${SlicerExecutionModel_USE_FILE})
+
+INCLUDE_DIRECTORIES(include)
 
 #
 # ITK

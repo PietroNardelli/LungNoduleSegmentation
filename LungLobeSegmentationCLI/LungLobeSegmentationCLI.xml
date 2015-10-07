@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Segmentation</category>
+  <title>Lung Lobe Segmentation CLI</title>
+  <description><![CDATA[This is a CLI module that can be bundled in an extension]]></description>
+  <version>0.0.1</version>
+  <documentation-url>http://www.slicer.org/slicerWiki/index.php/Documentation/4.3/Modules/CLIFlipImage</documentation-url>
+  <license>Slicer</license>
+  <contributor>Pietro Nardelli (UCC)</contributor>
+  <acknowledgements>This work was partially funded by NIH grant NXNNXXNNNNNN-NNXN</acknowledgements>
+  <parameters>
+    <label>IO</label>
+    <description><![CDATA[Input/output parameters]]></description>
+    <image>
+      <name>inputVolume</name>
+      <label>Input Volume</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description><![CDATA[Input volume]]></description>
+    </image>
+    <image type="label">
+      <name>labelMapVolume</name>
+      <label>Lung LabelMap Volume</label>
+      <channel>input</channel>
+      <index>1</index>
+      <description><![CDATA[Output Volume]]></description>
+    </image>
+    <image type="label">
+      <name>fissuresVolume</name>
+      <label>Fissures Volume</label>
+      <channel>input</channel>
+      <index>2</index>
+      <description><![CDATA[Output Volume]]></description>
+    </image>
+    <image type="label">
+      <name>OutputVolume</name>
+      <label>Output Volume</label>
+      <channel>output</channel>
+      <index>3</index>
+      <description><![CDATA[Output Volume]]></description>
+    </image>
+  </parameters>
+  <parameters>
+    <label>Fiducial Points</label>
+    <point multiple="true" coordinateSystem="ras">
+      <name>leftObliqueSeeds</name>
+      <label>Left Oblique Fissure Seeds</label>
+      <longflag>--leftObliqueSeeds</longflag>
+      <description><![CDATA[Three seed points (trachea, right and left main bronchi) has to be specified for the region growing algorithm]]></description>
+      <default>0,0,0</default>
+    </point>
+    <point multiple="true" coordinateSystem="ras">
+      <name>rightObliqueSeeds</name>
+      <label>Right Oblique Fissure Seeds</label>
+      <longflag>--rightObliqueSeeds</longflag>
+      <description><![CDATA[Three seed points (trachea, right and left main bronchi) has to be specified for the region growing algorithm]]></description>
+      <default>0,0,0</default>
+    </point>
+    <point multiple="true" coordinateSystem="ras">
+      <name>rightHorizontalSeeds</name>
+      <label>Right Horizontal Fissure Seeds</label>
+      <longflag>--rightHorizontalSeeds</longflag>
+      <description><![CDATA[Three seed points (trachea, right and left main bronchi) has to be specified for the region growing algorithm]]></description>
+      <default>0,0,0</default>
+    </point>
+  </parameters>
+</executable>

@@ -1,15 +1,17 @@
-#-----------------------------------------------------------------------------
-set(MODULE_NAME LungSegmentationCLI)
 
 #-----------------------------------------------------------------------------
+set(MODULE_NAME LungLobeSegmentationCLI)
 
-#INCLUDE_DIRECTORIES(include)
+#-----------------------------------------------------------------------------
 
 #
 # SlicerExecutionModel
 #
 find_package(SlicerExecutionModel REQUIRED)
 include(${SlicerExecutionModel_USE_FILE})
+
+
+INCLUDE_DIRECTORIES(include)
 
 #
 # ITK
@@ -40,8 +42,3 @@ SEMMacroBuildCLI(
   INCLUDE_DIRECTORIES ${MODULE_INCLUDE_DIRECTORIES}
   ADDITIONAL_SRCS ${MODULE_SRCS}
   )
-
-#-----------------------------------------------------------------------------
-if(BUILD_TESTING)
-  add_subdirectory(Testing)
-endif()

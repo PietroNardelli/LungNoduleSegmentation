@@ -226,6 +226,22 @@ class LungNoduleSegmentationWidget:
     stop = timeit.default_timer()
     print "Nodule segmentation: ", stop - start, "sec" 
 
+    self.LobesNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
+    self.LobesNode.SetLabelMap(1)
+    self.LobesNode.SetScene(slicer.mrmlScene)
+    self.LobesNode.SetName(slicer.mrmlScene.GetUniqueNameByString('LobesVolume'))
+    slicer.mrmlScene.AddNode(self.LobesNode)
+
+    LobesSegmentationModule = slicer.modules.lobesegmentationcli
+
+    params = {
+       "InputVolume": inputVolume,
+       "InputLungLabel": self.lungLabelNode, 
+       "OutputVolume": self.LobesNode,
+    }
+
+    slicer.cli.run( LobesSegmentationModule, None, params, wait_for_completion = True )
+
     # Create 3D model of the segment nodule 
     start = timeit.default_timer()
 
