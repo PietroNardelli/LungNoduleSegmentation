@@ -6,7 +6,7 @@
 #include "itkConnectedComponentImageFilter.h"
 #include "itkRelabelComponentImageFilter.h"
 
-#include "itkImageRegionIteratorWithIndex.h"
+#include "itkImageSliceIteratorWithIndex.h"
 
 #include "LungLobeSegmentationCLICLP.h"
 
@@ -38,9 +38,9 @@ int main( int argc, char * argv[] )
 
   LabelImageType::Pointer lungLabelMap = labelReader->GetOutput();
 
-  std::vector< LabelImageType::IndexType > leftObliqueIndicesVec;
-  std::vector< LabelImageType::IndexType > rightObliqueIndicesVec;
-  std::vector< LabelImageType::IndexType > rightHorizontalIndicesVec;
+  std::vector< LabelImageType::IndexType > leftOIdxVec;
+  std::vector< LabelImageType::IndexType > rightOIdxVec;
+  std::vector< LabelImageType::IndexType > rightHIdxVec;
 
   LabelReaderType::Pointer fissuresReader = LabelReaderType::New();
   fissuresReader->SetFileName(fissuresVolume.c_str() );
@@ -48,14 +48,18 @@ int main( int argc, char * argv[] )
 
   LabelImageType::Pointer fissuresLabelMap = fissuresReader->GetOutput();
 
-  typedef itk::ImageRegionIteratorWithIndex<LabelImageType> LabelMapIteratorType;
-  LabelMapIteratorType fIt( fissuresLabelMap, fissuresLabelMap->GetBufferedRegion() );
-  LabelMapIteratorType mIt( lungLabelMap, lungLabelMap->GetBufferedRegion() );
+  typedef itk::ImageSliceIteratorWithIndex<LabelImageType> LabelMapSliceIteratorType;
+  LabelMapSliceIteratorType fIt( fissuresLabelMap, fissuresLabelMap->GetBufferedRegion() );
+  LabelMapSliceIteratorType mIt( lungLabelMap, lungLabelMap->GetBufferedRegion() );
+
+  fIt.SetFirstDirection(0);
+  fIt.SetSecondDirection(2);
+
+  mIt.SetFirstDirection(0);
+  mIt.SetSecondDirection(2);
 
   fIt.GoToBegin();
   mIt.GoToBegin();
-
-  unsigned int leftCount = 0;
 
   LabelImageType::IndexType rhIdx;
   LabelImageType::IndexType roIdx;
@@ -63,77 +67,103 @@ int main( int argc, char * argv[] )
 
   while( !fIt.IsAtEnd() )
   {
-	  if( leftCount == 500 && fIt.Get() != 0 && mIt.Get() >= 9 && mIt.Get() <= 11 )
+	  while( !fIt.IsAtEndOfSlice() )
 	  {
-		  leftObliqueIndicesVec.push_back( fIt.GetIndex() );
-		  leftCount = 0;
-	  }
-	  else if(fIt.Get() != 0 && mIt.Get() >= 9 && mIt.Get() <= 11)
-	  {
-		  leftCount++;
-	  }
-	  else if( fIt.Get() != 0 && mIt.Get() >= 12 && mIt.Get() <= 14 )
-	  {
-		  if( mIt.Get() == 12 )
-		  {
-			  rightHorizontalIndicesVec.push_back( fIt.GetIndex() );
-		  }
-		  else if( mIt.Get() == 14 )
-		  {
-			  rightObliqueIndicesVec.push_back( fIt.GetIndex() );
-		  }
-		  /*else
+		  while( !fIt.IsAtEndOfLine() )
 		  {
 			  idx = fIt.GetIndex();
-			  if( rightHorizontalIndicesVec.size() > 0 && rightObliqueIndicesVec.size() > 0 )
+			  if( fIt.Get() != 0 && mIt.Get() >= cip::LEFTUPPERTHIRD && mIt.Get() <= cip::LEFTLOWERTHIRD )
 			  {
-				  rhIdx = rightHorizontalIndicesVec.back();
-				  roIdx = rightObliqueIndicesVec.back();
-
-				  if( abs(static_cast<int>(rhIdx[0]-idx[0])) <= abs(static_cast<int>(roIdx[0]-idx[0])) )
+				  leftOIdxVec.push_back( idx );
+			  }
+			  else if( fIt.Get() != 0 && mIt.Get() >= cip::RIGHTUPPERTHIRD && mIt.Get() <= cip::RIGHTLOWERTHIRD )
+			  {
+				  if( mIt.Get() == cip::RIGHTLOWERTHIRD )
 				  {
-					  rightHorizontalIndicesVec.push_back(idx);
+					  rightOIdxVec.push_back( idx );
 				  }
 				  else
 				  {
-					  rightObliqueIndicesVec.push_back(idx);
+					  if( rightHIdxVec.size() > 0 && rightOIdxVec.size() > 0 )
+					  {
+						  rhIdx = rightHIdxVec.back();
+						  roIdx = rightOIdxVec.back();
+						  
+						  if( abs(static_cast<int>(rhIdx[2]-idx[2])) <= abs(static_cast<int>(roIdx[2]-idx[2])) )
+						  {
+							  rightHIdxVec.push_back(idx);
+						  }
+						  else
+						  {
+								  rightOIdxVec.push_back(idx);
+								  fIt.Set( 5 );
+						  }
+					  }
+					  else if( rightHIdxVec.size() == 0 && rightOIdxVec.size() > 0 )
+					  {
+						  roIdx = rightOIdxVec.back();
+						  if( abs(static_cast<int>(roIdx[2]-idx[2])) <= 5 )
+						  {
+							  rightOIdxVec.push_back(idx);
+						  }
+						  else
+						  {
+							  rightHIdxVec.push_back(idx);
+						  }
+					  }
+					  else if( rightOIdxVec.size() == 0 && rightHIdxVec.size() > 0 )
+					  {
+						  rhIdx = rightOIdxVec.back();
+						  if( abs(static_cast<int>(rhIdx[2]-idx[2])) <= 5 )
+						  {
+							  rightHIdxVec.push_back(idx);
+						  }
+						  else
+						  {
+							  rightOIdxVec.push_back(idx);
+						  }
+					  }
+					  else //TODO if both empty choose based on position within the lung third
+					  {
+					  }
 				  }
 			  }
-			  else if( rightHorizontalIndicesVec.size() == 0 && rightObliqueIndicesVec.size() > 0 )
-			  {
-				  roIdx = rightObliqueIndicesVec.back();
-				  if( abs(static_cast<int>(roIdx[0]-idx[0])) <= 50 )
-				  {
-					  rightObliqueIndicesVec.push_back(idx);
-				  }
-				  else
-				  {
-					  rightHorizontalIndicesVec.push_back(idx);
-				  }
-			  }
-			  else if( rightObliqueIndicesVec.size() == 0 && rightHorizontalIndicesVec.size() > 0 )
-			  {
-				  rhIdx = rightObliqueIndicesVec.back();
-				  if( abs(static_cast<int>(rhIdx[0]-idx[0])) <= 50 )
-				  {
-					  rightHorizontalIndicesVec.push_back(idx);
-				  }
-				  else
-				  {
-					  rightObliqueIndicesVec.push_back(idx);
-				  }
-			  }
-			  else //TODO if both empty choose based on position within the lung third
-			  {
-			  }
-		  }*/
+			  ++fIt;
+			  ++mIt;
+		  }
+		  fIt.NextLine();
+		  mIt.NextLine();		  
 	  }
-	  ++fIt;
-	  ++mIt;
+	  fIt.NextSlice();
+	  mIt.NextSlice();
   }
 
-  std::cout<<rightHorizontalIndicesVec.front()<<std::endl;
-  std::cout<<rightObliqueIndicesVec.front()<<std::endl;
+  std::vector< LabelImageType::IndexType > rightObliqueIndicesVec;
+  std::vector< LabelImageType::IndexType > rightHorizontalIndicesVec;
+  std::vector< LabelImageType::IndexType > leftObliqueIndicesVec;
+
+  //std::cout<<<<" "<<rightOIdxVec.size()/300<<rightHIdxVec.size()/300<<std::endl;
+
+  unsigned int leftStep = int(leftOIdxVec.size()/200);
+  unsigned int rightOStep = int(rightOIdxVec.size()/300);
+  unsigned int rightHStep= int(rightHIdxVec.size()/300);
+
+  for( unsigned int i = 0; i < leftOIdxVec.size(); i += leftStep )
+  {
+	  leftObliqueIndicesVec.push_back( leftOIdxVec.at(i) );
+  }
+
+  for( unsigned int i = 0; i < rightOIdxVec.size(); i += rightOStep )
+  {
+	  rightObliqueIndicesVec.push_back( rightOIdxVec.at(i) );
+  }
+
+  for( unsigned int j = 0; j < rightHIdxVec.size(); j += rightHStep )
+  {
+	  rightHorizontalIndicesVec.push_back( rightHIdxVec.at(j) );
+  }
+  
+  std::cout<<leftObliqueIndicesVec.size()<<" "<<rightObliqueIndicesVec.size()<<" "<<rightHorizontalIndicesVec.size()<<std::endl;
 
   /*LabelImageType::PointType point;
   LabelImageType::IndexType idx;
@@ -147,7 +177,7 @@ int main( int argc, char * argv[] )
 
         // Convert the lps physical point to index
         inputImage->TransformPhysicalPointToIndex( point, idx );
-		leftObliqueIndicesVec.push_back(idx);
+		leftOIdxVec.push_back(idx);
   }
   
   for( unsigned int i = 0; i < rightObliqueSeeds.size(); i++ )
@@ -178,12 +208,12 @@ int main( int argc, char * argv[] )
   LobeSegmentationType::Pointer lobeSegmenter = LobeSegmentationType::New();
   lobeSegmenter->SetInput(lungLabelMap);
 
-  /*if( rightHorizontalIndicesVec.size() > 0 && rightObliqueIndicesVec.size() > 0 )
+  if( rightHorizontalIndicesVec.size() > 0 && rightObliqueIndicesVec.size() > 0 )
   {
 	  lobeSegmenter->SetRightHorizontalFissureIndices( rightHorizontalIndicesVec );
 	  lobeSegmenter->SetRightObliqueFissureIndices( rightObliqueIndicesVec );
-  }*/
-  if( leftObliqueIndicesVec.size() > 0 )
+  }
+  if( leftOIdxVec.size() > 0 )
   {
 	  lobeSegmenter->SetLeftObliqueFissureIndices( leftObliqueIndicesVec );
   }
