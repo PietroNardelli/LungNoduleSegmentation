@@ -410,7 +410,6 @@ int main( int argc, char * argv[] )
 	  roiFilter->SetRegionOfInterest(ROI);
 	  roiFilter->SetInput(fissuresImage);
 	  roiFilter->Update();
-	  OutputImageType::Pointer sagittalSlice = roiFilter->GetOutput();
 
 	  LabelMapType::Pointer totalLabelMap = LabelMapType::New();
 
@@ -432,10 +431,6 @@ int main( int argc, char * argv[] )
 			  if( labelObject->GetRoundness() > 0.5 || labelObject->GetNumberOfPixels() < 50 )
 			  {
 				  labelsToRemove.push_back(labelObject->GetLabel());
-			  }
-			  else
-			  {
-				  std::cout<<"centroid: "<<labelObject->GetCentroid()<<" round: "<<labelObject->GetRoundness()<<" pixels: "<<labelObject->GetNumberOfPixels()<<std::endl;
 			  }
 		  }
 		  for(unsigned int n = 0; n < labelsToRemove.size(); n++)
@@ -470,6 +465,88 @@ int main( int argc, char * argv[] )
 
 	  cleanedFissuresImage = pasteImageFilter->GetOutput();
   }
+
+  /** Repeat analysis along z 
+
+  regionSize[0] = fissuresImage->GetLargestPossibleRegion().GetSize()[0];
+  regionSize[1] = fissuresImage->GetLargestPossibleRegion().GetSize()[1];
+  regionSize[2] = 1;
+
+  ROI.SetSize(regionSize);
+
+  regionIndex.Fill(0);
+  
+  LabelMapToBinaryImageType::Pointer axialL2BFilter = LabelMapToBinaryImageType::New();
+  PasteImageFilterType::Pointer axialPasteImageFilter = PasteImageFilterType::New();
+  MergeLabelMapFilterType::Pointer axialMergeLabelFilter = MergeLabelMapFilterType::New();
+
+  for( unsigned int sliceZ = 0; sliceZ < fissuresImage->GetLargestPossibleRegion().GetSize()[2]; sliceZ++ )
+  {
+	  regionIndex[2] = sliceZ;
+	  ROI.SetIndex(regionIndex);
+
+	  roiFilter->SetRegionOfInterest(ROI);
+	  roiFilter->SetInput(cleanedFissuresImage);
+	  roiFilter->Update();
+
+	  LabelMapType::Pointer totalLabelMap = LabelMapType::New();
+
+	  for( unsigned int label = 1; label < 3; label++ )
+	  {
+		  ImageToShapeLabelMapFilterType::Pointer I2SLFilter = ImageToShapeLabelMapFilterType::New();
+		  I2SLFilter->SetInputForegroundValue(label);
+		  I2SLFilter->SetInput(roiFilter->GetOutput());
+		  I2SLFilter->SetFullyConnected(1);
+		  I2SLFilter->Update();
+		  
+		  LabelMapType::Pointer labelMap = I2SLFilter->GetOutput();
+		  
+		  std::vector<unsigned long> labelsToRemove;
+		  
+		  for(unsigned int i = 0; i < labelMap->GetNumberOfLabelObjects(); i++)
+		  {
+			  ShapeLabelObjectType::Pointer labelObject = labelMap->GetNthLabelObject(i);
+			  if( labelObject->GetRoundness() > 0.5 || labelObject->GetNumberOfPixels() < 50 )
+			  {
+				  labelsToRemove.push_back(labelObject->GetLabel());
+			  }
+			  else if( sliceZ == 268 )
+			  {
+				  std::cout<<labelObject->GetRoundness()<<std::endl;
+			  }
+		  }
+		  for(unsigned int n = 0; n < labelsToRemove.size(); n++)
+		  {		  
+			  labelMap->RemoveLabel(labelsToRemove[n]);
+		  }
+
+		  if( label == 2 )
+		  {
+			  axialMergeLabelFilter->SetMethod(MergeLabelMapFilterType::PACK);
+			  axialMergeLabelFilter->SetInput(totalLabelMap);
+			  axialMergeLabelFilter->SetInput(1,labelMap);
+			  axialMergeLabelFilter->Update();
+			  totalLabelMap = axialMergeLabelFilter->GetOutput();
+		  }
+		  else
+		  {
+			  totalLabelMap = labelMap;
+		  }
+	  }
+	  
+	  axialL2BFilter->SetInput(totalLabelMap);
+	  axialL2BFilter->SetBackgroundValue( 0 );
+	  axialL2BFilter->SetForegroundValue( 1 );
+	  axialL2BFilter->Update();
+
+	  axialPasteImageFilter->SetSourceImage(axialL2BFilter->GetOutput());
+	  axialPasteImageFilter->SetDestinationImage(cleanedFissuresImage);
+	  axialPasteImageFilter->SetSourceRegion(axialL2BFilter->GetOutput()->GetLargestPossibleRegion());
+	  axialPasteImageFilter->SetDestinationIndex(regionIndex);
+	  axialPasteImageFilter->Update();
+
+	  cleanedFissuresImage = axialPasteImageFilter->GetOutput();
+  }*/
 
   /*typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim > StructuringElementType;  	
   StructuringElementType structElement;

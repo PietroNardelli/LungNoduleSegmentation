@@ -26,14 +26,14 @@ int main( int argc, char * argv[] )
   
   typedef itk::ImageFileReader< InputImageType > GreyScaleReaderType;
   GreyScaleReaderType::Pointer greyScaleReader = GreyScaleReaderType::New();     
-  greyScaleReader->SetFileName( inputVolume.c_str() );
+  greyScaleReader->SetFileName( InputVolume.c_str() );
   greyScaleReader->Update();
 
   InputImageType::Pointer inputImage = greyScaleReader->GetOutput();
 
   typedef itk::ImageFileReader< LabelImageType > LabelReaderType;
   LabelReaderType::Pointer labelReader = LabelReaderType::New();
-  labelReader->SetFileName( labelMapVolume.c_str() );
+  labelReader->SetFileName( LabelMapVolume.c_str() );
   labelReader->Update();
 
   LabelImageType::Pointer lungLabelMap = labelReader->GetOutput();
@@ -43,7 +43,7 @@ int main( int argc, char * argv[] )
   std::vector< LabelImageType::IndexType > rightHIdxVec;
 
   LabelReaderType::Pointer fissuresReader = LabelReaderType::New();
-  fissuresReader->SetFileName(fissuresVolume.c_str() );
+  fissuresReader->SetFileName(FissuresVolume.c_str() );
   fissuresReader->Update();
 
   LabelImageType::Pointer fissuresLabelMap = fissuresReader->GetOutput();
@@ -144,12 +144,13 @@ int main( int argc, char * argv[] )
 
   //std::cout<<<<" "<<rightOIdxVec.size()/300<<rightHIdxVec.size()/300<<std::endl;
 
-  unsigned int leftStep = int(leftOIdxVec.size()/200);
-  unsigned int rightOStep = int(rightOIdxVec.size()/300);
-  unsigned int rightHStep= int(rightHIdxVec.size()/300);
+  unsigned int leftStep = int(leftOIdxVec.size()/100);
+  unsigned int rightOStep = int(rightOIdxVec.size()/200);
+  unsigned int rightHStep= int(rightHIdxVec.size()/200);
 
   for( unsigned int i = 0; i < leftOIdxVec.size(); i += leftStep )
   {
+	  fissuresLabelMap->SetPixel(leftOIdxVec.at(i), 10);
 	  leftObliqueIndicesVec.push_back( leftOIdxVec.at(i) );
   }
 

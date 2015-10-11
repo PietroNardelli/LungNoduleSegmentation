@@ -226,18 +226,35 @@ class LungNoduleSegmentationWidget:
     stop = timeit.default_timer()
     print "Nodule segmentation: ", stop - start, "sec" 
 
+    self.FissuresNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
+    self.FissuresNode.SetLabelMap(1)
+    self.FissuresNode.SetScene(slicer.mrmlScene)
+    self.FissuresNode.SetName(slicer.mrmlScene.GetUniqueNameByString('FissuresVolume'))
+    slicer.mrmlScene.AddNode(self.FissuresNode)
+
+    FissuresSegmentationModule = slicer.modules.lungfissuresegmentationcli
+
+    params = {
+       "InputVolume": inputVolume,
+       "InputLungLabel": self.lungLabelNode, 
+       "OutputVolume": self.FissuresNode,
+    }
+
+    slicer.cli.run( FissuresSegmentationModule, None, params, wait_for_completion = True )
+
     self.LobesNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
     self.LobesNode.SetLabelMap(1)
     self.LobesNode.SetScene(slicer.mrmlScene)
     self.LobesNode.SetName(slicer.mrmlScene.GetUniqueNameByString('LobesVolume'))
     slicer.mrmlScene.AddNode(self.LobesNode)
 
-    LobesSegmentationModule = slicer.modules.lobesegmentationcli
+    LobesSegmentationModule = slicer.modules.lunglobesegmentationcli
 
     params = {
        "InputVolume": inputVolume,
-       "InputLungLabel": self.lungLabelNode, 
-       "OutputVolume": self.LobesNode,
+       "LabelMapVolume": self.lungLabelNode, 
+       "FissuresVolume": self.FissuresNode,
+       "OutputVolume": self.LobesNode
     }
 
     slicer.cli.run( LobesSegmentationModule, None, params, wait_for_completion = True )

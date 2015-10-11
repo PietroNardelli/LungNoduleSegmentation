@@ -12,21 +12,21 @@
     <label>IO</label>
     <description><![CDATA[Input/output parameters]]></description>
     <image>
-      <name>inputVolume</name>
+      <name>InputVolume</name>
       <label>Input Volume</label>
       <channel>input</channel>
       <index>0</index>
       <description><![CDATA[Input volume]]></description>
     </image>
     <image type="label">
-      <name>labelMapVolume</name>
+      <name>LabelMapVolume</name>
       <label>Lung LabelMap Volume</label>
       <channel>input</channel>
       <index>1</index>
       <description><![CDATA[Output Volume]]></description>
     </image>
     <image type="label">
-      <name>fissuresVolume</name>
+      <name>FissuresVolume</name>
       <label>Fissures Volume</label>
       <channel>input</channel>
       <index>2</index>

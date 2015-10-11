@@ -46,7 +46,11 @@
 
 #include "itkImageDuplicator.h"
 
+#include "itkLabelStatisticsImageFilter.h"
+
 #include "itkPoint.h"
+
+#include "cipChestConventions.h"
 
 #include "LungNoduleSegmentationCLICLP.h"
 
@@ -191,7 +195,7 @@ int main( int argc, char * argv[] )
      double currentDist = noduleLabelObject->GetCentroid().EuclideanDistanceTo(lps);
      if( noduleLabelObject->GetFeretDiameter() > 1 && currentDist < minDist )
      {
-	minDist = currentDist;
+		 minDist = currentDist;
         //std::cout<<minDist<<std::endl;
         if( n != 0 )
         {
@@ -280,6 +284,8 @@ int main( int argc, char * argv[] )
   std::cout<<"Range: "<<lowerThreshold<<"->"<<upperThreshold<<std::endl;
   // Segment the nodule
   clonedROI = roiDuplicator->GetOutput();
+
+  int noduleColor = cip::NODULAR;
   
   typedef itk::ConnectedThresholdImageFilter< InputImageType, OutputImageType > ConnectedThresholdFilterType;
   ConnectedThresholdFilterType::Pointer connectedThresholdFilter = ConnectedThresholdFilterType::New();
@@ -355,7 +361,7 @@ int main( int argc, char * argv[] )
         }
   }
 
-  for( unsigned int i = 0; i < 5; i++)
+  for( unsigned int i = 0; i < 10; i++)
   {
     // Compute mean and std. dev. of the region underneath the image label
     clonedROI = roiDuplicator->GetOutput();
@@ -396,6 +402,17 @@ int main( int argc, char * argv[] )
   closing->SetInput( noduleLabel );
   closing->SetKernel( structElement );
   closing->SetForegroundValue( noduleColor );
+  closing->Update();
+
+  I2LType::Pointer n2iFilter = I2LType::New();
+  n2iFilter->SetInput( closing->GetOutput() );
+  n2iFilter->SetInputForegroundValue( noduleColor );
+  n2iFilter->Update();
+
+  ShapeLabelObjectType::Pointer noduleLabelObject = n2iFilter->GetOutput()->GetNthLabelObject(0);
+  std::cout<<"Roundness: "<<noduleLabelObject->GetRoundness()<<std::endl;
+  std::cout<<"Area mean: "<<mean<<std::endl;
+  std::cout<<"sigma: "<<sigma<<std::endl;
 
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
