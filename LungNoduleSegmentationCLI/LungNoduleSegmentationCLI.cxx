@@ -252,16 +252,16 @@ int main( int argc, char * argv[] )
   roiDuplicator->Update();
   InputImageType::Pointer clonedROI = roiDuplicator->GetOutput();   
 
-  // Exclude all the voxels with an intensity smaller than -824 HU from the following analysis and segmentation 
+  // Exclude all the voxels with an intensity smaller than -500 HU from the following analysis and segmentation 
   typedef itk::BinaryThresholdImageFilter< InputImageType, OutputImageType > thresholdFilterType;
   thresholdFilterType::Pointer roiThresholdFilter = thresholdFilterType::New();
   roiThresholdFilter->SetInput( 0, roiImage );
   roiThresholdFilter->SetInsideValue( 1 );
   roiThresholdFilter->SetOutsideValue( 0 );
-  roiThresholdFilter->SetLowerThreshold(-824);
+  roiThresholdFilter->SetLowerThreshold(-500);
   roiThresholdFilter->SetUpperThreshold(5000);
 
-  // And filtering to exclude voxels with an intensity smaller than -824 HU (in case of airways within the nodule)
+  // And filtering to exclude voxels with an intensity smaller than -500 HU (in case of airways within the nodule)
   typedef itk::AndImageFilter< OutputImageType > andFilterType;
   andFilterType::Pointer andFilter = andFilterType::New();
   andFilter->SetInput(0, noduleLabelToBinaryFilter->GetOutput());
@@ -373,20 +373,25 @@ int main( int argc, char * argv[] )
     mean = labelStatisticsImageFilter->GetMean( noduleColor );
     sigma = labelStatisticsImageFilter->GetSigma( noduleColor );
 
-    upperThreshold = mean + 2*sigma;
-    lowerThreshold = mean - 2*sigma;
-
-    // Segment the nodule
-    clonedROI = roiDuplicator->GetOutput();   
-
-    connectedThresholdFilter->SetInput( clonedROI );			  
-    connectedThresholdFilter->SetReplaceValue( noduleColor ); 	
-    connectedThresholdFilter->SetUpper( upperThreshold );
-    connectedThresholdFilter->SetLower( lowerThreshold );    
-    connectedThresholdFilter->AddSeed( index );
-    connectedThresholdFilter->Update();
-
-    noduleLabel = connectedThresholdFilter->GetOutput();
+	upperThreshold = mean + 2 * sigma;
+	lowerThreshold = mean - 2 * sigma;
+	if( upperThreshold < 300 && lowerThreshold > -300 )
+	{
+		// Segment the nodule
+		clonedROI = roiDuplicator->GetOutput();  
+		
+		connectedThresholdFilter->SetInput( clonedROI );			  
+		connectedThresholdFilter->SetReplaceValue( noduleColor ); 	
+		connectedThresholdFilter->SetUpper( upperThreshold );
+		connectedThresholdFilter->SetLower( lowerThreshold );    
+		connectedThresholdFilter->AddSeed( index );
+		connectedThresholdFilter->Update();
+		noduleLabel = connectedThresholdFilter->GetOutput();
+	}
+	else
+	{
+		i = 9;
+	}
   }
 
   typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim > StructuringElementType;  	

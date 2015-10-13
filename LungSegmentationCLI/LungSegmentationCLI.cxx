@@ -801,7 +801,11 @@ int main( int argc, char * argv[] )
   RelabelImageFilterType::Pointer relabelFilter = RelabelImageFilterType::New();
 
   relabelFilter->SetInput(connectedComponentFilter->GetOutput());
-  relabelFilter->SetMinimumObjectSize(60000);  
+  
+  unsigned int minimumSize = inputImage->GetLargestPossibleRegion().GetSize()[0] * inputImage->GetLargestPossibleRegion().GetSize()[1] * inputImage->GetLargestPossibleRegion().GetSize()[2];
+  minimumSize *= 0.05;
+
+  relabelFilter->SetMinimumObjectSize(minimumSize);  
 
   typedef itk::ThresholdImageFilter<LabelImageType> ThresholdImageFilterType;
   ThresholdImageFilterType::Pointer thresholdFilter = ThresholdImageFilterType::New();
@@ -903,6 +907,7 @@ int main( int argc, char * argv[] )
 	  SbSROIFilterType::Pointer connectionExtractor = SbSROIFilterType::New();
 	  BinaryErodeImageFilterType::Pointer connectionErodeFilter = BinaryErodeImageFilterType::New();
 	  ConnectedComponentImageFilterType::Pointer connectionCCFilter = ConnectedComponentImageFilterType::New();
+	  RelabelImageFilterType::Pointer connectionRelabelCCFilter = RelabelImageFilterType::New();
 	  BinaryDilateImageFilterType::Pointer connectionDilateFilterOne = BinaryDilateImageFilterType::New();
 	  BinaryDilateImageFilterType::Pointer connectionDilateFilterTwo = BinaryDilateImageFilterType::New();
 	  AddImageFilterType::Pointer addImageFilter = AddImageFilterType::New();
@@ -941,8 +946,10 @@ int main( int argc, char * argv[] )
 			  slice2labels->SetInput( extractedImage );
 			  slice2labels->Update();
 			  ShapeLabelObjectType::Pointer labelObject = slice2labels->GetOutput()->GetNthLabelObject(0);
+
 			  if( labelObject->GetNumberOfPixels() > 10000 || labelObject->GetPerimeter() > 15000 )
-			  {				  
+			  {	
+				  InputImageType::RegionType connectionRegion;
 				  while( maxValue == 1 )
 				  {
 					  if( firstIteration )
@@ -962,7 +969,7 @@ int main( int argc, char * argv[] )
 					
 					  extractorPrevDuplicatorFilter->SetInputImage(prevSlice);
 					  extractorPrevDuplicatorFilter->Update();
-					
+									  
 					  labelContourFilter->SetInput(extractorPrevDuplicatorFilter->GetOutput());
 					  labelContourFilter->SetFullyConnected(0);
 					  labelContourFilter->Update();
@@ -1008,21 +1015,20 @@ int main( int argc, char * argv[] )
 						  pixelValue = 1;
 						  prevIdx = 0;
 						  linIt.NextLine();
-					  }
-				  
-					  if( minDistIdx[0] >= 20 && minDistIdx[1] >= 40 )
+					  }	  
+
+					  if( minDistIdx[0] >= 20 && minDistIdx[1] >= 60 )
 					  {
 						  InputImageType::SizeType connectionSize;
 						  connectionSize[0] = 20;
-						  connectionSize[1] = 40;
+						  connectionSize[1] = 60;
 						  connectionSize[2] = 1;
 
 						  InputImageType::IndexType connectionIndex;
 						  connectionIndex[0] = minDistIdx[0]-10;
-						  connectionIndex[1] = minDistIdx[1]-20;
+						  connectionIndex[1] = minDistIdx[1]-30;
 						  connectionIndex[2] = 0;
 					
-						  InputImageType::RegionType connectionRegion;
 						  connectionRegion.SetSize( connectionSize );
 						  connectionRegion.SetIndex( connectionIndex );
 					
@@ -1030,7 +1036,7 @@ int main( int argc, char * argv[] )
 						  connectionExtractor->SetRegionOfInterest( connectionRegion );
 						  connectionExtractor->Update(); 
 						  LabelImageType::Pointer connectionImage = connectionExtractor->GetOutput();
-					
+						  
 						  // Connection erosion
 						  StructuringElementType connectionErodeStructElement;
 						  StructuringElementType::SizeType connectionErodeRadius;
@@ -1043,32 +1049,53 @@ int main( int argc, char * argv[] )
 						  connectionErodeFilter->SetKernel(connectionErodeStructElement);
 						  connectionErodeFilter->SetForegroundValue( 1 );
 						  connectionErodeFilter->SetInput(connectionExtractor->GetOutput());
+						  connectionErodeFilter->SetBoundaryToForeground(1);
 						  connectionErodeFilter->Update();
 
 						  LabelImageType::Pointer erodeImage = connectionErodeFilter->GetOutput();
-				
+
 						  connectionCCFilter->SetInput(erodeImage);
-						  connectionCCFilter->Update();
+						  connectionRelabelCCFilter->SetInput(connectionCCFilter->GetOutput());
+						  connectionRelabelCCFilter->SetMinimumObjectSize( 10 );
+						  connectionRelabelCCFilter->Update();
 					
-						  while( connectionCCFilter->GetObjectCount() == 1 )
+						  while( connectionRelabelCCFilter->GetNumberOfObjects() == 1 && connectionErodeRadius[0] < 16 )
 						  {
 							  connectionErodeRadius[0] += 1;
 							  connectionErodeRadius[1] += 1;        
 							  connectionErodeRadius[2] = 1;
 							  connectionErodeStructElement.SetRadius( connectionErodeRadius );
 							  connectionErodeStructElement.CreateStructuringElement();
+							  connectionErodeFilter->SetKernel(connectionErodeStructElement);
 							  connectionErodeFilter->Update();
 							  erodeImage = connectionErodeFilter->GetOutput();
 							  connectionCCFilter->SetInput(erodeImage);
-							  connectionCCFilter->Update();
+							  connectionRelabelCCFilter->SetInput(connectionCCFilter->GetOutput());
+							  if( connectionErodeRadius[0] < 10 )
+							  {
+								  connectionRelabelCCFilter->SetMinimumObjectSize( 20 );
+							  }
+							  else
+							  {
+								  connectionRelabelCCFilter->SetMinimumObjectSize( 5 );
+							  }
+							  connectionRelabelCCFilter->Update();
 						  }
-
 						  // Connection dilation
 						  StructuringElementType connectionDilateStructElement;
 						  StructuringElementType::SizeType connectionDilateRadius;
-						  unsigned int dilateRadiusSize = erodeRadiusSize;
-						  connectionDilateRadius.Fill( dilateRadiusSize );
-						  connectionDilateRadius[2] = 1;
+						  if( connectionErodeRadius[0] < 10 )
+						  {
+							  connectionDilateRadius[0] = connectionErodeRadius[0];
+							  connectionDilateRadius[1] = connectionErodeRadius[1];
+							  connectionDilateRadius[2] = 1;
+						  }
+						  else
+						  {
+							  connectionDilateRadius[0] = 3;
+							  connectionDilateRadius[1] = 3;
+							  connectionDilateRadius[2] = 1;
+						  }
 						  connectionDilateStructElement.SetRadius( connectionDilateRadius );
 						  connectionDilateStructElement.CreateStructuringElement();
 					
@@ -1200,6 +1227,7 @@ int main( int argc, char * argv[] )
 						  connCompImage = connCompImagePasteFilter->GetOutput();
 						
 						  firstIteration = 0;
+						  maxValue = 2;
 						}
 						else
 						{
@@ -1208,13 +1236,46 @@ int main( int argc, char * argv[] )
 					}
 					
 					typedef itk::ImageRegionIterator< LabelImageType > LabelMapRegionIteratorType;
-					LabelMapRegionIteratorType regIterator(extractedImage, extractedImage->GetLargestPossibleRegion() );
-					
+					LabelMapRegionIteratorType regIterator(extractedImage, connectionRegion );
+
 					SbSPrevSliceExtractor->Update();
 					prevSlice = SbSPrevSliceExtractor->GetOutput();
+					LabelMapRegionIteratorType prevIterator( prevSlice, connectionRegion );
 
-					LabelMapRegionIteratorType prevIterator( prevSlice, prevSlice->GetLargestPossibleRegion() );
+					regIterator.GoToBegin();
+					prevIterator.GoToBegin();
+					unsigned int counter = 0;
+					while( !regIterator.IsAtEnd() )
+					{
+						if( regIterator.Get() == 1 && prevIterator.Get() == 2 )
+						{
+							counter++;
+						}
+						else if(regIterator.Get() == 2 && prevIterator.Get() == 1 )
+						{
+							counter++;
+						}
+						++regIterator;
+						++prevIterator;
+					}
 
+					if( counter > 80 )
+					{
+						regIterator.GoToBegin();
+						while( !regIterator.IsAtEnd() )
+						{
+							if( regIterator.Get() == 1 )
+							{
+								regIterator.Set(2);
+							}
+							else if(regIterator.Get() == 2 )
+							{
+								regIterator.Set(1);
+							}
+							++regIterator;
+						}
+					}
+					
 					regIterator.GoToBegin();
 					prevIterator.GoToBegin();
 
