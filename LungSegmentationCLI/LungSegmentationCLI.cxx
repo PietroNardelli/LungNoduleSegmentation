@@ -803,7 +803,7 @@ int main( int argc, char * argv[] )
   relabelFilter->SetInput(connectedComponentFilter->GetOutput());
   
   unsigned int minimumSize = inputImage->GetLargestPossibleRegion().GetSize()[0] * inputImage->GetLargestPossibleRegion().GetSize()[1] * inputImage->GetLargestPossibleRegion().GetSize()[2];
-  minimumSize *= 0.05;
+  minimumSize *= 0.01;
 
   relabelFilter->SetMinimumObjectSize(minimumSize);  
 
