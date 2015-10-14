@@ -26,6 +26,7 @@
 
 #include "itkBinaryImageToShapeLabelMapFilter.h"
 #include "itkLabelMapToBinaryImageFilter.h"
+#include "itkPasteImageFilter.h"
 
 #include "itkRegionOfInterestImageFilter.h"
 
@@ -38,6 +39,8 @@
 
 #include "itkMinimumMaximumImageFilter.h"
 #include "itkAndImageFilter.h"
+#include "itkNotImageFilter.h"
+#include "itkImageRegionIteratorWithIndex.h"
 #include "itkLabelStatisticsImageFilter.h"
 
 #include "itkConnectedThresholdImageFilter.h"
@@ -46,7 +49,10 @@
 
 #include "itkImageDuplicator.h"
 
-#include "itkLabelStatisticsImageFilter.h"
+#include "itkConnectedComponentImageFilter.h"
+#include "itkRelabelComponentImageFilter.h"
+
+#include "itkBinaryContourImageFilter.h"
 
 #include "itkPoint.h"
 
@@ -407,22 +413,188 @@ int main( int argc, char * argv[] )
   closing->SetInput( noduleLabel );
   closing->SetKernel( structElement );
   closing->SetForegroundValue( noduleColor );
+  closing->SetSafeBorder( 1 );
   closing->Update();
 
-  I2LType::Pointer n2iFilter = I2LType::New();
-  n2iFilter->SetInput( closing->GetOutput() );
-  n2iFilter->SetInputForegroundValue( noduleColor );
-  n2iFilter->Update();
+  OutputImageType::Pointer noduleImage = closing->GetOutput();
 
-  ShapeLabelObjectType::Pointer noduleLabelObject = n2iFilter->GetOutput()->GetNthLabelObject(0);
+  I2LType::Pointer n2lFilter = I2LType::New();
+  n2lFilter->SetInput( closing->GetOutput() );
+  n2lFilter->SetInputForegroundValue( noduleColor );
+  n2lFilter->Update();
+
+  ShapeLabelObjectType::Pointer noduleLabelObject = n2lFilter->GetOutput()->GetNthLabelObject(0);
   std::cout<<"Roundness: "<<noduleLabelObject->GetRoundness()<<std::endl;
   std::cout<<"Area mean: "<<mean<<std::endl;
   std::cout<<"sigma: "<<sigma<<std::endl;
 
+  /** Compute Cavity Wall Thickness */
+
+  typedef itk::NotImageFilter<OutputImageType, OutputImageType> NotImageFilterType;
+  NotImageFilterType::Pointer notFilter = NotImageFilterType::New();
+  notFilter->SetInput(closing->GetOutput());
+  notFilter->Update();
+  OutputImageType::Pointer holesImage = notFilter->GetOutput();
+
+  I2LType::Pointer negatedImage2LabelFilter = I2LType::New();
+  
+  noduleLabelMapToBinaryImageType::Pointer holesLabelToBinaryFilter = noduleLabelMapToBinaryImageType::New();
+  
+  typedef itk::PasteImageFilter<OutputImageType, OutputImageType> PasteImageFilterType;
+  PasteImageFilterType::Pointer pasteImageFilter = PasteImageFilterType::New();
+
+  typedef itk::RegionOfInterestImageFilter< OutputImageType, OutputImageType > labelROIFilterType;
+  labelROIFilterType::Pointer labelROIFilter = labelROIFilterType::New();
+  labelROIFilter->SetInput(holesImage);	
+
+  OutputImageType::SizeType labelRegionSize = holesImage->GetLargestPossibleRegion().GetSize();
+  labelRegionSize[2] = 1;
+  OutputImageType::IndexType labelRegionIndex;
+  labelRegionIndex.Fill(0);
+  OutputImageType::RegionType labelRegion;
+  labelRegion.SetSize( labelRegionSize );
+
+  OutputImageType::Pointer finalHolesImage = OutputImageType::New();
+  finalHolesImage->CopyInformation( holesImage );
+  finalHolesImage->Allocate();
+  finalHolesImage->FillBuffer( itk::NumericTraits< OutputPixelType >::Zero );
+
+  for( unsigned int i = 0; i < holesImage->GetLargestPossibleRegion().GetSize()[2]; ++i )
+  {
+	  labelRegionIndex[2] = i;
+	  labelRegion.SetIndex( labelRegionIndex );
+	  labelROIFilter->SetRegionOfInterest( labelRegion );	 
+	  labelROIFilter->Update();
+
+	  OutputImageType::Pointer sliceImage = labelROIFilter->GetOutput();
+	  
+	  negatedImage2LabelFilter->SetInput( sliceImage );
+	  negatedImage2LabelFilter->SetInputForegroundValue( 1 );
+	  negatedImage2LabelFilter->Update();
+
+	  std::vector<unsigned long> labelsToRemove;
+	  LabelMapType::Pointer labelMap = negatedImage2LabelFilter->GetOutput();
+	  //std::cout<<labelMap->GetNumberOfLabelObjects()<<std::endl;
+
+	  for( unsigned int n = 0; n < labelMap->GetNumberOfLabelObjects(); ++n )
+	  {
+		  ShapeLabelObjectType::Pointer labelObject = labelMap->GetNthLabelObject(n);
+		  if( labelObject->GetBoundingBox().GetIndex()[0] == 0 || labelObject->GetBoundingBox().GetIndex()[1] == 0 || labelObject->GetNumberOfPixels() < 5 )
+		  {
+			  labelsToRemove.push_back(labelObject->GetLabel());
+		  }
+	  }
+	  for(unsigned int n = 0; n < labelsToRemove.size(); ++n)
+	  {
+		  labelMap->RemoveLabel(labelsToRemove[n]);
+	  }
+	  
+	  noduleLabelToBinaryFilter->SetInput( labelMap );
+	  noduleLabelToBinaryFilter->SetBackgroundValue( 0 );
+	  noduleLabelToBinaryFilter->SetForegroundValue( noduleColor );
+
+	  pasteImageFilter->SetSourceImage(noduleLabelToBinaryFilter->GetOutput());
+	  pasteImageFilter->SetDestinationImage(finalHolesImage);
+	  pasteImageFilter->SetSourceRegion(noduleLabelToBinaryFilter->GetOutput()->GetLargestPossibleRegion());
+	  pasteImageFilter->SetDestinationIndex(labelRegionIndex);
+	  pasteImageFilter->Update();
+
+	  finalHolesImage = pasteImageFilter->GetOutput();
+  }
+
+  roiDuplicator->Update();
+  clonedROI = roiDuplicator->GetOutput();
+
+  typedef itk::ImageRegionIteratorWithIndex< OutputImageType > RegionIteratorWithIndexType;
+  typedef itk::ImageRegionIteratorWithIndex< InputImageType > ROIRegionIteratorWithIndexType;
+
+  RegionIteratorWithIndexType rIt( finalHolesImage, holesImage->GetBufferedRegion() );
+  ROIRegionIteratorWithIndexType roiIt( clonedROI, clonedROI->GetBufferedRegion() );
+
+  rIt.GoToBegin();
+  roiIt.GoToBegin();
+
+  while( !rIt.IsAtEnd() )
+  {
+	  if( rIt.Get() != 0 && roiIt.Get() < -500 )
+	  {
+		  rIt.Set( noduleColor );
+	  }
+	  else if( roiIt.Get() > - 500 )
+	  {
+		  rIt.Set(0);
+		  noduleImage->SetPixel( rIt.GetIndex(), noduleColor );
+	  }
+	  ++rIt;
+	  ++roiIt;
+  }
+
+
+  typedef itk::BinaryContourImageFilter< OutputImageType, OutputImageType > BinaryContourFilterType;
+  BinaryContourFilterType::Pointer noduleContourFilter = BinaryContourFilterType::New();
+  noduleContourFilter->SetInput( noduleImage );
+  noduleContourFilter->SetForegroundValue( noduleColor );
+  noduleContourFilter->Update();
+
+  noduleImage = noduleContourFilter->GetOutput();
+
+  BinaryContourFilterType::Pointer holesContourFilter = BinaryContourFilterType::New();
+  holesContourFilter->SetInput( finalHolesImage );
+  holesContourFilter->SetForegroundValue( noduleColor );
+  holesContourFilter->Update();
+  finalHolesImage = holesContourFilter->GetOutput();
+
+  RegionIteratorWithIndexType nIt( noduleImage, noduleImage->GetBufferedRegion() );
+  RegionIteratorWithIndexType hIt( finalHolesImage, finalHolesImage->GetBufferedRegion() );
+
+  nIt.GoToBegin();
+
+  OutputImageType::PointType nIdx, hIdx, closestPoint;
+  double dist, minEuclideanDist, maxThickness;
+
+  minEuclideanDist = itk::NumericTraits< double >::max();
+  maxThickness = itk::NumericTraits< double >::min();
+  std::cout<<minEuclideanDist<<std::endl;
+  std::cout<<maxThickness<<std::endl;
+
+  while( !nIt.IsAtEnd() )
+  {
+	  if( nIt.Get() != 0 )
+	  {
+		  nIdx[0] = nIt.GetIndex()[0];
+		  nIdx[1] = nIt.GetIndex()[1];
+		  nIdx[2] = nIt.GetIndex()[2];
+
+		  hIt.GoToBegin();
+		  while( !hIt.IsAtEnd() )
+		  {
+			  if( hIt.Get() != 0 )
+			  {
+				  hIdx[0] = hIt.GetIndex()[0];
+				  hIdx[1] = hIt.GetIndex()[1];
+				  hIdx[2] = hIt.GetIndex()[2];
+				  dist = nIdx.EuclideanDistanceTo( hIdx );
+				  if( dist > 2 && dist < minEuclideanDist )
+				  {
+					  minEuclideanDist = dist;
+				  }
+			  }
+			  ++hIt;
+		  }
+		  if( minEuclideanDist > maxThickness )	
+		  {
+			  maxThickness = minEuclideanDist;
+		  }
+	  }
+	  ++nIt;
+  }
+
+  std::cout<<maxThickness<<std::endl;
+
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( OutputVolume.c_str() );
-  writer->SetInput( closing->GetOutput() );
+  writer->SetInput( finalHolesImage );
   writer->SetUseCompression(1);
   try
   {   

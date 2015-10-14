@@ -528,8 +528,6 @@ LabelImageType::Pointer AirwaySegmentation( InputImageType::Pointer image, Input
 int main( int argc, char * argv[] )
 {
   PARSE_ARGS;
-  itk::TimeProbe clockWriting;
-  clockWriting.Start();
 
   typedef itk::Image< MSOutputPixelType, Dim > 						MSOutputImageType;
 
@@ -582,7 +580,7 @@ int main( int argc, char * argv[] )
   i2l->Update();
 
   LabelMapType::Pointer labelMap = i2l->GetOutput();
-  //std::cout << "Number of objects beforehand: " << labelMap->GetNumberOfLabelObjects() << std::endl;
+
   std::vector<unsigned long> labelsToRemove;
 
   for(unsigned int n = 0; n < labelMap->GetNumberOfLabelObjects(); ++n)
@@ -827,9 +825,6 @@ int main( int argc, char * argv[] )
 
   LabelImageType::PixelType maxLabel = maxLabelCalculator->GetMaximum();
   
-  clockWriting.Stop();
-  std::cout << "Lung Segm.: " << clockWriting.GetTotal() << std::endl;
-
   if( maxLabel == 1 )
   {
 	  itk::TimeProbe clockSeparation;
