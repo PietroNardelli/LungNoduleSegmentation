@@ -287,7 +287,7 @@ int main( int argc, char * argv[] )
   LabelStatisticsImageFilterType::RealType upperThreshold = mean + 2*sigma;
   LabelStatisticsImageFilterType::RealType lowerThreshold = mean - 2*sigma;
 
-  std::cout<<"Range: "<<lowerThreshold<<"->"<<upperThreshold<<std::endl;
+  std::cout<<"Starting range: "<<lowerThreshold<<"->"<<upperThreshold<<std::endl;
   // Segment the nodule
   clonedROI = roiDuplicator->GetOutput();
 
@@ -369,36 +369,38 @@ int main( int argc, char * argv[] )
 
   for( unsigned int i = 0; i < 10; i++)
   {
-    // Compute mean and std. dev. of the region underneath the image label
-    clonedROI = roiDuplicator->GetOutput();
+	  // Compute mean and std. dev. of the region underneath the image label
+	  clonedROI = roiDuplicator->GetOutput();
 
-    labelStatisticsImageFilter->SetLabelInput( noduleLabel );
-    labelStatisticsImageFilter->SetInput( clonedROI );
-    labelStatisticsImageFilter->Update();
+	  labelStatisticsImageFilter->SetLabelInput( noduleLabel );
+	  labelStatisticsImageFilter->SetInput( clonedROI );
+	  labelStatisticsImageFilter->Update();
     
-    mean = labelStatisticsImageFilter->GetMean( noduleColor );
-    sigma = labelStatisticsImageFilter->GetSigma( noduleColor );
+	  mean = labelStatisticsImageFilter->GetMean( noduleColor );
+	  sigma = labelStatisticsImageFilter->GetSigma( noduleColor );
 
-	upperThreshold = mean + 2 * sigma;
-	lowerThreshold = mean - 2 * sigma;
-	if( upperThreshold < 300 && lowerThreshold > -300 )
-	{
-		// Segment the nodule
-		clonedROI = roiDuplicator->GetOutput();  
+	  upperThreshold = mean + 2 * sigma;
+	  lowerThreshold = mean - 2 * sigma;
+	  if( upperThreshold < 300 && lowerThreshold > -300 )
+	  {
+		  // Segment the nodule
+		  clonedROI = roiDuplicator->GetOutput();  
 		
-		connectedThresholdFilter->SetInput( clonedROI );			  
-		connectedThresholdFilter->SetReplaceValue( noduleColor ); 	
-		connectedThresholdFilter->SetUpper( upperThreshold );
-		connectedThresholdFilter->SetLower( lowerThreshold );    
-		connectedThresholdFilter->AddSeed( index );
-		connectedThresholdFilter->Update();
-		noduleLabel = connectedThresholdFilter->GetOutput();
-	}
-	else
-	{
-		i = 9;
-	}
+		  connectedThresholdFilter->SetInput( clonedROI );			  
+		  connectedThresholdFilter->SetReplaceValue( noduleColor ); 	
+		  connectedThresholdFilter->SetUpper( upperThreshold );
+		  connectedThresholdFilter->SetLower( lowerThreshold );    
+		  connectedThresholdFilter->AddSeed( index );
+		  connectedThresholdFilter->Update();
+		  noduleLabel = connectedThresholdFilter->GetOutput();
+	  }
+	  else
+	  {
+		  i = 9;
+	  }
   }
+
+  std::cout<<"Final mean: "<<mean<<" Final range: "<<lowerThreshold<<"->"<<upperThreshold<<std::endl;
 
   typedef itk::BinaryBallStructuringElement< OutputPixelType, Dim > StructuringElementType;  	
   StructuringElementType structElement;
@@ -421,12 +423,17 @@ int main( int argc, char * argv[] )
   I2LType::Pointer n2lFilter = I2LType::New();
   n2lFilter->SetInput( closing->GetOutput() );
   n2lFilter->SetInputForegroundValue( noduleColor );
+  //n2lFilter->SetComputeFeretDiameter(1);
   n2lFilter->Update();
 
   ShapeLabelObjectType::Pointer noduleLabelObject = n2lFilter->GetOutput()->GetNthLabelObject(0);
   std::cout<<"Roundness: "<<noduleLabelObject->GetRoundness()<<std::endl;
   std::cout<<"Area mean: "<<mean<<std::endl;
   std::cout<<"sigma: "<<sigma<<std::endl;
+  std::cout<<"centroid: "<<noduleLabelObject->GetCentroid()<<std::endl;
+  std::cout<<"Radius: "<<noduleLabelObject->GetEquivalentSphericalRadius()<<std::endl;
+  double noduleEqDiameter = noduleLabelObject->GetEquivalentSphericalRadius()*2;
+  OutputImageType::PointType noduleCentroid = noduleLabelObject->GetCentroid();
 
   /** Compute Cavity Wall Thickness */
 
@@ -510,9 +517,11 @@ int main( int argc, char * argv[] )
 
   RegionIteratorWithIndexType rIt( finalHolesImage, holesImage->GetBufferedRegion() );
   ROIRegionIteratorWithIndexType roiIt( clonedROI, clonedROI->GetBufferedRegion() );
+  RegionIteratorWithIndexType noduleIt( noduleImage, noduleImage->GetBufferedRegion() );
 
   rIt.GoToBegin();
   roiIt.GoToBegin();
+  noduleIt.GoToBegin();
 
   while( !rIt.IsAtEnd() )
   {
@@ -520,15 +529,17 @@ int main( int argc, char * argv[] )
 	  {
 		  rIt.Set( noduleColor );
 	  }
-	  else if( roiIt.Get() > - 500 )
+	  else if( rIt.Get() != 0 && roiIt.Get() > - 500 )
 	  {
 		  rIt.Set(0);
-		  noduleImage->SetPixel( rIt.GetIndex(), noduleColor );
+		  noduleIt.Set( noduleColor );
 	  }
 	  ++rIt;
 	  ++roiIt;
+	  ++noduleIt;
   }
 
+  // Extract boundaries of the two images
 
   typedef itk::BinaryContourImageFilter< OutputImageType, OutputImageType > BinaryContourFilterType;
   BinaryContourFilterType::Pointer noduleContourFilter = BinaryContourFilterType::New();
@@ -536,16 +547,16 @@ int main( int argc, char * argv[] )
   noduleContourFilter->SetForegroundValue( noduleColor );
   noduleContourFilter->Update();
 
-  noduleImage = noduleContourFilter->GetOutput();
+  OutputImageType::Pointer boundaryNoduleImage = noduleContourFilter->GetOutput();
 
   BinaryContourFilterType::Pointer holesContourFilter = BinaryContourFilterType::New();
   holesContourFilter->SetInput( finalHolesImage );
   holesContourFilter->SetForegroundValue( noduleColor );
   holesContourFilter->Update();
-  finalHolesImage = holesContourFilter->GetOutput();
+  OutputImageType::Pointer boundaryHolesImage = holesContourFilter->GetOutput();
 
-  RegionIteratorWithIndexType nIt( noduleImage, noduleImage->GetBufferedRegion() );
-  RegionIteratorWithIndexType hIt( finalHolesImage, finalHolesImage->GetBufferedRegion() );
+  RegionIteratorWithIndexType nIt( boundaryNoduleImage, noduleImage->GetBufferedRegion() );
+  RegionIteratorWithIndexType hIt( boundaryHolesImage, finalHolesImage->GetBufferedRegion() );
 
   nIt.GoToBegin();
 
@@ -581,7 +592,7 @@ int main( int argc, char * argv[] )
 			  }
 			  ++hIt;
 		  }
-		  if( minEuclideanDist > maxThickness )	
+		  if( minEuclideanDist > maxThickness && minEuclideanDist < noduleEqDiameter )	
 		  {
 			  maxThickness = minEuclideanDist;
 		  }
@@ -591,10 +602,66 @@ int main( int argc, char * argv[] )
 
   std::cout<<maxThickness<<std::endl;
 
+  /** Search for possible calcification */
+
+  OutputImageType::Pointer calcificationImage = OutputImageType::New();
+  calcificationImage->SetBufferedRegion( noduleImage->GetBufferedRegion() );
+  calcificationImage->SetLargestPossibleRegion( noduleImage->GetLargestPossibleRegion() );
+  calcificationImage->CopyInformation( noduleImage );
+  calcificationImage->Allocate();
+  calcificationImage->FillBuffer( itk::NumericTraits< OutputPixelType >::Zero );
+
+  RegionIteratorWithIndexType calcIt(calcificationImage, calcificationImage->GetBufferedRegion() );
+
+  calcIt.GoToBegin();
+  roiIt.GoToBegin();
+  while( !calcIt.IsAtEnd() )
+  {
+  	  if( calcIt.Get() != 0 && roiIt.Get() >= (mean+sigma) )
+	  {
+		  calcIt.Set(cip::CALCIFICATION);
+	  }
+	  ++calcIt;
+	  ++roiIt;
+  }
+
+  I2LType::Pointer calcification2LabelMapFilter = I2LType::New();
+  calcification2LabelMapFilter->SetInput( calcificationImage );
+  calcification2LabelMapFilter->SetInputForegroundValue( cip::CALCIFICATION );
+  calcification2LabelMapFilter->Update();
+
+  LabelMapType::Pointer calcificationLabelMap = calcification2LabelMapFilter->GetOutput();
+
+  unsigned int eccentricCalc = 0;
+
+  for( unsigned int n = 0; n < calcificationLabelMap->GetNumberOfLabelObjects(); ++n )
+  {
+	  ShapeLabelObjectType::Pointer labelObject = calcificationLabelMap->GetNthLabelObject(n);
+	  if( labelObject->GetEquivalentSphericalRadius() > noduleEqDiameter/4 && labelObject->GetRoundness() > 0.7 )
+	  {
+		  OutputImageType::PointType calcPos = labelObject->GetCentroid();
+		  double dist = calcPos.EuclideanDistanceTo( noduleCentroid );
+		  if( dist > 5 )
+		  {
+			  eccentricCalc++;
+		  }
+	  }
+  }
+
+  if( eccentricCalc <= 1 )
+  {
+	  std::cout<<"Malignant Calcification Pattern"<<std::endl;
+  }
+  else
+  {
+	  std::cout<<"Benign Calcification Pattern"<<std::endl;
+  }
+
+
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( OutputVolume.c_str() );
-  writer->SetInput( finalHolesImage );
+  writer->SetInput( noduleImage );
   writer->SetUseCompression(1);
   try
   {   

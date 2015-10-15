@@ -360,7 +360,7 @@ int main( int argc, char * argv[] )
   RelabelImageFilterType::Pointer relabelFilter = RelabelImageFilterType::New();
 
   relabelFilter->SetInput(connectedComponentFilter->GetOutput());
-  relabelFilter->SetMinimumObjectSize(8000); 
+  relabelFilter->SetMinimumObjectSize(2000); 
   relabelFilter->Update();
   fissuresImage = relabelFilter->GetOutput();
 
@@ -413,7 +413,7 @@ int main( int argc, char * argv[] )
 
 	  LabelMapType::Pointer totalLabelMap = LabelMapType::New();
 
-	  for( unsigned int label = 1; label < 3; label++ )
+	  for( unsigned int label = 1; label <= relabelFilter->GetNumberOfObjects(); label++ )
 	  {
 		  ImageToShapeLabelMapFilterType::Pointer I2SLFilter = ImageToShapeLabelMapFilterType::New();
 		  I2SLFilter->SetInputForegroundValue(label);
@@ -438,17 +438,17 @@ int main( int argc, char * argv[] )
 			  labelMap->RemoveLabel(labelsToRemove[n]);
 		  }
 
-		  if( label == 2 )
+		  if( label == 1 )
+		  {
+			  totalLabelMap = labelMap;
+		  }
+		  else
 		  {
 			  mergeLabelFilter->SetMethod(MergeLabelMapFilterType::PACK);
 			  mergeLabelFilter->SetInput(totalLabelMap);
 			  mergeLabelFilter->SetInput(1,labelMap);
 			  mergeLabelFilter->Update();
 			  totalLabelMap = mergeLabelFilter->GetOutput();
-		  }
-		  else
-		  {
-			  totalLabelMap = labelMap;
 		  }
 	  }
 	  
@@ -561,162 +561,7 @@ int main( int argc, char * argv[] )
   closing->SetInput( cleanedFissuresImage );
   closing->SetKernel( structElement );
   closing->SetForegroundValue( 1 );*/
-
-  /*typedef itk::DanielssonDistanceMapImageFilter< OutputImageType, InputImageType, VoronoiImageType > DanielssonDMFilterType;
-  DanielssonDMFilterType::Pointer distanceMapFilter = DanielssonDMFilterType::New();*/
-
-  /*distanceMapFilter->SetInput( cleanedFissuresImage );
-  distanceMapFilter->SetInputIsBinary(1);
-  distanceMapFilter->Update();
-  
-  InputImageType::Pointer fissuresDMImage = distanceMapFilter->GetOutput();*/
-
-  /*typedef itk::SubtractImageFilter< InputImageType > SubtractImageType;
-  SubtractImageType::Pointer subtractFilter = SubtractImageType::New();
-  subtractFilter->SetConstant1(10);
-  subtractFilter->SetInput2( distanceMapFilter->GetOutput() );
-  subtractFilter->Update();*/
-  /*typedef itk::ImageDuplicator<OutputImageType> ImageDuplicatorType;
-  ImageDuplicatorType::Pointer imageDuplicator = ImageDuplicatorType::New();
-  imageDuplicator->SetInputImage(lungLabelImage);
-  imageDuplicator->Update();
-
-  OutputImageType::Pointer fissureLungLabelImage = imageDuplicator->GetOutput();*/
-  
-  /*inputRegionIteratorType fissureDMIt( fissuresDMImage, fissuresDMImage->GetRequestedRegion() );
-  OutputRegionIteratorType lungLabelIt( fissureLungLabelImage, fissureLungLabelImage->GetRequestedRegion() );
-
-  fissureDMIt.GoToBegin();
-  lungLabelIt.GoToBegin();
-
-  while( !fissureDMIt.IsAtEnd() )
-  {
-	  if( fissureDMIt.Get() <= 3 )
-	  {
-		  OutputPixelType value = lungLabelIt.Get();
-		  value += 2;
-		  lungLabelIt.Set(value);
-
-    }
-    ++fissureDMIt;
-	++lungLabelIt;
-  }
-
-  typedef itk::ImageSliceIteratorWithIndex<OutputImageType> SliceIterator;
-  SliceIterator sIt(fissureLungLabelImage, fissureLungLabelImage->GetLargestPossibleRegion());
-
-  sIt.SetFirstDirection(0);
-  sIt.SetSecondDirection(1);
-
-  sIt.GoToBegin();
-
-  while( !sIt.IsAtEnd() )
-  {
-	  while( !sIt.IsAtEndOfSlice() )
-	  {
-		  int count = 0;
-		  OutputPixelType previous;
-		  while( !sIt.IsAtEndOfLine() )
-		  {
-			  if( sIt.Get() == 3 )
-			  {
-				  count++;
-			  }
-			  if( sIt.Get() == 1 && previous == 3 && count >= 50 )
-			  {
-				  sIt.Set( 3 );
-			  }
-			  previous = sIt.Get();			  
-			  ++sIt;
-		  }
-		  sIt.NextLine();
-	  }
-	  sIt.NextSlice();
-  }*/
-
-  //fissuresPasteImageFilter->Update();
  
-
-  
-  /*typedef itk::AddImageFilter< InputImageType, InputImageType > AddImageFilterType;
-  AddImageFilterType::Pointer addFilter = AddImageFilterType::New();
-
-  addFilter->SetInput1( fissureDMImage );
-  addFilter->SetInput2( parenchymaImage );
-  //addFilter->Update();*/
-
-  /*typedef itk::MaskNegatedImageFilter< InputImageType, OutputImageType > MaskNegatedFilterType;
-  MaskNegatedFilterType::Pointer maskNegatedFilter = MaskNegatedFilterType::New();
-
-  maskNegatedFilter->SetInput(parenchymaImage);
-  maskNegatedFilter->SetMaskImage(vesselsLabel);
-  maskNegatedFilter->SetOutsideValue(0);
-  maskNegatedFilter->Update();
-  
-  InputImageType::Pointer maskNegatedImage = maskNegatedFilter->GetOutput();
-
-  //InputImageType::Pointer fissuresOriginalImage = addFilter->GetOutput();*/
-  
-  /*OutputRegionIteratorType fissuresImageIt( cleanedFissuresImage, cleanedFissuresImage->GetRequestedRegion());
-  inputRegionIteratorType vesselsDMIt( vesselsDMImage, vesselsDMImage->GetRequestedRegion() );
-  inputRegionIteratorType fissureDMIt( fissuresDMImage, fissuresDMImage->GetRequestedRegion() );
-
-  fissuresImageIt.GoToBegin();
-  vesselsDMIt.GoToBegin();
-  fissureDMIt.GoToBegin();
-
-  while(!fissuresImageIt.IsAtEnd())
-  {
-	  if( fissuresImageIt.Get() == 0 && vesselsDMIt.Get() > 0 && fissureDMIt.Get() <= 5 )
-	  {
-		  fissuresImageIt.Set(1);
-	  }
-  	  ++fissuresImageIt;
-	  ++vesselsDMIt;
-	  ++fissureDMIt;
-  }*/
-
-  /*InputImageType::Pointer vesselsDMImage = distanceMapFilter->GetOutput();
-
-  typedef itk::ImageRegionIterator<InputImageType> inputRegionIteratorType;  
-  inputRegionIteratorType vesselsDMIt(vesselsDMImage, vesselsDMImage->GetRequestedRegion());
-
-  vesselsDMIt.GoToBegin();
-
-  while( !vesselsDMIt.IsAtEnd() )
-  {
-    if( vesselsDMIt.Get() >= 6 )
-    {
-		InputImageType::PixelType value = vesselsDMIt.Get();
-		value *= value;
-		vesselsDMIt.Set(value);
-    }
-	else
-	{
-		vesselsDMIt.Set(itk::NumericTraits<InputPixelType>::Zero);
-	}
-    ++vesselsDMIt;
-  }*/
-
-  /*typedef itk::MultiplyImageFilter<InputImageType,InputImageType> MultiplyFilterType;
-  MultiplyFilterType::Pointer multiplyFilter = MultiplyFilterType::New();
-  multiplyFilter->SetInput1(distanceMapFilter->GetOutput());
-  multiplyFilter->SetConstant2(5);
-  //distanceMapFilter->Update();*/
-
-  /*typedef itk::AddImageFilter< InputImageType, InputImageType > AddImageFilterType;
-  AddImageFilterType::Pointer addFilter = AddImageFilterType::New();
-
-  addFilter->SetInput1( maskNegatedImage );
-  addFilter->SetInput2( distanceMapFilter->GetOutput() );*/
-  //addFilter->Update();
-
-  /*typedef itk::MaskImageFilter<InputImageType, OutputImageType> DistanceMapMaskFilterType;
-  DistanceMapMaskFilterType::Pointer DMMaskFilter = DistanceMapMaskFilterType::New();
-  DMMaskFilter->SetInput( distanceMapFilter->GetOutput() );
-  DMMaskFilter->SetMaskImage( lungLabelImage );
-  DMMaskFilter->SetOutsideValue( 0.0 );*/
-  
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( OutputVolume.c_str() );
