@@ -91,15 +91,24 @@ class LungNoduleSegmentationWidget:
     #######################  Button to trigger segmentation  ##########################
     ###################################################################################    
 
-    self.LungNoduleSegmentationButton = qt.QPushButton("Start Lung Segmentation")
+    self.LungNoduleSegmentationButton = qt.QPushButton("Start Nodule Evaluation")
     self.LungNoduleSegmentationButton.toolTip = "Run the algorithm to segment the lung"
-    self.LungNoduleSegmentationButton.setFixedSize(300,50)
+    self.LungNoduleSegmentationButton.setFixedSize(200,50)
     self.LungNoduleSegmentationButton.enabled = False
 
     boxLayout = qt.QVBoxLayout()
 
     IOFormLayout.addRow(boxLayout)
     boxLayout.addWidget(self.LungNoduleSegmentationButton,0,4)
+
+    ###################################################################################
+    ######################## Percentage of malignity ##################################
+    ###################################################################################
+
+    self.percentageOfMalignancy = qt.QLineEdit()
+    self.percentageOfMalignancy.setReadOnly(0)
+
+    IOFormLayout.addRow("Percentage Of Malignancy: ", self.percentageOfMalignancy)
 
     ########################################################################################
     ################################ Create Connections ####################################
@@ -221,10 +230,10 @@ class LungNoduleSegmentationWidget:
        "noduleColor": labelColor,
     }
 
-    slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion = True )
+    NoduleSegmentationNode = slicer.cli.run( LungNoduleSegmentationModule, None, parameters, wait_for_completion = True )
 
     stop = timeit.default_timer()
-    print "Nodule segmentation: ", stop - start, "sec" 
+    print "Nodule segmentation: ", stop - start, "sec"     
 
     self.FissuresNode = slicer.mrmlScene.CreateNodeByClass(nodeType)
     self.FissuresNode.SetLabelMap(1)
@@ -288,6 +297,25 @@ class LungNoduleSegmentationWidget:
     stop = timeit.default_timer()
     print "Model maker: ", stop - start, "sec" 
 
+    # Evaluate malignancy of the nodule
+
+    nodulePosition = NoduleSegmentationNode.GetParameterDefault(2,0)
+    noduleSize = NoduleSegmentationNode.GetParameterDefault(2,1)
+    noduleRoundness = NoduleSegmentationNode.GetParameterDefault(2,2)
+    noduleCavityWallThickness = NoduleSegmentationNode.GetParameterDefault(2,3) 
+    noduleCalcificationPattern = NoduleSegmentationNode.GetParameterDefault(2,4)
+
+    lobesImageData = self.LobesNode.GetImageData()
+
+    print nodulePosition
+    nodulePosition = eval(nodulePosition)
+    print nodulePosition[0]
+
+    lobeValue = lobesImageData.GetScalarComponentAsDouble(int(nodulePosition[0]),int(nodulePosition[1]),int(nodulePosition[2]), 0)
+    string_percentage = str(lobeValue) + '%'        
+       
+    self.percentageOfMalignancy.setText(string_percentage)
+ 
     self.LungNoduleSegmentationButton.enabled = True
 
   def datacheck_peakdetect(self, x_axis, y_axis):

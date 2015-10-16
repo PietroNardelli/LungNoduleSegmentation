@@ -45,12 +45,12 @@
   </parameters>
   <parameters>
     <label>Output Metrics</label>
-    <double-vector>
+    <integer-vector>
       <name>NodulePosition</name>
       <description><![CDATA[Nodule position (in RAS)]]></description>
       <label>NodulePosition</label>
       <channel>output</channel>
-    </double-vector>
+    </integer-vector>
     <double>
       <name>NoduleSize</name>
       <description><![CDATA[Equivalent diameter of the nodule (in mm)]]></description>

@@ -659,9 +659,11 @@ int main( int argc, char * argv[] )
 	  std::cout<<"Benign Calcification Pattern"<<std::endl;
   }
 
+  OutputImageType::IndexType noduleCentroidIdx;
+  inputImage->TransformPhysicalPointToIndex(noduleCentroid, noduleCentroidIdx );
   std::ofstream rts;
   rts.open(returnParameterFile.c_str() );
-  rts << "NodulePosition = " << noduleCentroid << std::endl;
+  rts << "NodulePosition = " << noduleCentroidIdx << std::endl;
   rts << "NoduleSize = " << noduleEqDiameter << std::endl;
   rts << "NoduleRoundness = " << noduleRoundness << std::endl;
   rts << "CavityWallThickness = " << cavityThickness << std::endl;
