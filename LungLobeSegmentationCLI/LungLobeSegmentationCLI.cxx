@@ -142,15 +142,36 @@ int main( int argc, char * argv[] )
   std::vector< LabelImageType::IndexType > rightHorizontalIndicesVec;
   std::vector< LabelImageType::IndexType > leftObliqueIndicesVec;
 
-  //std::cout<<<<" "<<rightOIdxVec.size()/300<<rightHIdxVec.size()/300<<std::endl;
+  unsigned int leftStep, rightOStep, rightHStep;
+  if( leftOIdxVec.size() > 100 )
+  {
+	  leftStep = int(leftOIdxVec.size()/100);
+  }
+  else
+  {
+	  leftStep = 1;
+  }
+  if( rightOIdxVec.size() > 200 )
+  {
+	  rightOStep = int(rightOIdxVec.size()/200);
+  }
+  else
+  {
+	  rightOStep = 1;
+  }
+  if( rightHIdxVec.size() > 200 )
+  {
+	  rightHStep = int(rightHIdxVec.size()/200);
+  }
+  else
+  {
+	  rightHStep = 1;
+  }
 
-  unsigned int leftStep = int(leftOIdxVec.size()/100);
-  unsigned int rightOStep = int(rightOIdxVec.size()/200);
-  unsigned int rightHStep= int(rightHIdxVec.size()/200);
+  std::cout<<rightOIdxVec.size()<<" "<<rightHIdxVec.size()<<std::endl;
 
   for( unsigned int i = 0; i < leftOIdxVec.size(); i += leftStep )
   {
-	  fissuresLabelMap->SetPixel(leftOIdxVec.at(i), 10);
 	  leftObliqueIndicesVec.push_back( leftOIdxVec.at(i) );
   }
 
@@ -164,8 +185,6 @@ int main( int argc, char * argv[] )
 	  rightHorizontalIndicesVec.push_back( rightHIdxVec.at(j) );
   }
   
-  std::cout<<leftObliqueIndicesVec.size()<<" "<<rightObliqueIndicesVec.size()<<" "<<rightHorizontalIndicesVec.size()<<std::endl;
-
   /*LabelImageType::PointType point;
   LabelImageType::IndexType idx;
 

@@ -34,7 +34,7 @@
     </image>
     <image type="label">
       <name>OutputVolume</name>
-      <label>Output Volume</label>
+      <label>Lobe Volume</label>
       <channel>output</channel>
       <index>3</index>
       <description><![CDATA[Output Volume]]></description>

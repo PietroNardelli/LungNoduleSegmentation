@@ -432,7 +432,9 @@ int main( int argc, char * argv[] )
   std::cout<<"sigma: "<<sigma<<std::endl;
   std::cout<<"centroid: "<<noduleLabelObject->GetCentroid()<<std::endl;
   std::cout<<"Radius: "<<noduleLabelObject->GetEquivalentSphericalRadius()<<std::endl;
+
   double noduleEqDiameter = noduleLabelObject->GetEquivalentSphericalRadius()*2;
+  double noduleRoundness = noduleLabelObject->GetRoundness();
   OutputImageType::PointType noduleCentroid = noduleLabelObject->GetCentroid();
 
   /** Compute Cavity Wall Thickness */
@@ -561,12 +563,12 @@ int main( int argc, char * argv[] )
   nIt.GoToBegin();
 
   OutputImageType::PointType nIdx, hIdx, closestPoint;
-  double dist, minEuclideanDist, maxThickness;
+  double dist, minEuclideanDist, cavityThickness;
 
   minEuclideanDist = itk::NumericTraits< double >::max();
-  maxThickness = itk::NumericTraits< double >::min();
+  cavityThickness = itk::NumericTraits< double >::min();
   std::cout<<minEuclideanDist<<std::endl;
-  std::cout<<maxThickness<<std::endl;
+  std::cout<<cavityThickness<<std::endl;
 
   while( !nIt.IsAtEnd() )
   {
@@ -592,15 +594,15 @@ int main( int argc, char * argv[] )
 			  }
 			  ++hIt;
 		  }
-		  if( minEuclideanDist > maxThickness && minEuclideanDist < noduleEqDiameter )	
+		  if( minEuclideanDist > cavityThickness && minEuclideanDist < noduleEqDiameter )	
 		  {
-			  maxThickness = minEuclideanDist;
+			  cavityThickness = minEuclideanDist;
 		  }
 	  }
 	  ++nIt;
   }
 
-  std::cout<<maxThickness<<std::endl;
+  std::cout<<cavityThickness<<std::endl;
 
   /** Search for possible calcification */
 
@@ -657,6 +659,21 @@ int main( int argc, char * argv[] )
 	  std::cout<<"Benign Calcification Pattern"<<std::endl;
   }
 
+  std::ofstream rts;
+  rts.open(returnParameterFile.c_str() );
+  rts << "NodulePosition = " << noduleCentroid << std::endl;
+  rts << "NoduleSize = " << noduleEqDiameter << std::endl;
+  rts << "NoduleRoundness = " << noduleRoundness << std::endl;
+  rts << "CavityWallThickness = " << cavityThickness << std::endl;
+  if( eccentricCalc <= 1 )
+  {
+	  rts << "CalcificationPattern = false" << std::endl;
+  }
+  else
+  {
+	  rts << "CalcificationPattern = true" << std::endl;
+  }
+  rts.close();
 
   typedef itk::ImageFileWriter<OutputImageType> WriterType;
   WriterType::Pointer writer = WriterType::New();

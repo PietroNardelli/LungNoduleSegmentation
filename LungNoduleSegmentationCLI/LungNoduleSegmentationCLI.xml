@@ -9,7 +9,7 @@
   <contributor>Pietro Nardelli (UCC)</contributor>
   <acknowledgements><![CDATA[]]></acknowledgements>
   <parameters>
-    <label>IO</label>
+    <label>IO images</label>
     <description><![CDATA[Input/output parameters]]></description>
     <image>
       <name>InputVolume</name>
@@ -42,5 +42,41 @@
        <description><![CDATA[One seed point indicating the nodule position.]]></description>
        <default>0,0,0</default>
      </point>
+  </parameters>
+  <parameters>
+    <label>Output Metrics</label>
+    <double-vector>
+      <name>NodulePosition</name>
+      <description><![CDATA[Nodule position (in RAS)]]></description>
+      <label>NodulePosition</label>
+      <channel>output</channel>
+    </double-vector>
+    <double>
+      <name>NoduleSize</name>
+      <description><![CDATA[Equivalent diameter of the nodule (in mm)]]></description>
+      <label>Nodule Size</label>
+      <channel>output</channel>
+      <default>0.0</default>
+    </double>
+    <double>
+      <name>NoduleRoundness</name>
+      <description><![CDATA[Roundness of the nodule (0-1)]]></description>
+      <label>Nodule Roundness</label>
+      <channel>output</channel>
+      <default>0.0</default>
+    </double>
+    <double>
+      <name>CavityWallThickness</name>
+      <description><![CDATA[Nodule cavity wall thickness (in mm)]]></description>
+      <label>Cavity Wall Thickness</label>
+      <channel>output</channel>
+      <default>0.0</default>
+    </double>
+    <boolean>
+      <name>CalcificationPattern</name>
+      <description><![CDATA[True indicates a benign pattern]]></description>
+      <label>Benign Calcification Pattern</label>
+      <channel>output</channel>
+    </boolean>
   </parameters>
 </executable>
