@@ -168,7 +168,7 @@ int main( int argc, char * argv[] )
 	  rightHStep = 1;
   }
 
-  std::cout<<rightOIdxVec.size()<<" "<<rightHIdxVec.size()<<std::endl;
+  std::cout<<"leftOIdxVec: "<<leftOIdxVec.size()<<" rightOIdxVec: "<<rightOIdxVec.size()<<" rightHIdxVec: "<<rightHIdxVec.size()<<std::endl;
 
   for( unsigned int i = 0; i < leftOIdxVec.size(); i += leftStep )
   {
@@ -184,6 +184,8 @@ int main( int argc, char * argv[] )
   {
 	  rightHorizontalIndicesVec.push_back( rightHIdxVec.at(j) );
   }
+  std::cout<<"leftObliqueIndicesVec: "<<leftObliqueIndicesVec.size()<<" rightObliqueIndicesVec: "<<rightObliqueIndicesVec.size()<<" rightHorizontalIndicesVec: "<<rightHorizontalIndicesVec.size()<<std::endl;
+
   
   /*LabelImageType::PointType point;
   LabelImageType::IndexType idx;
@@ -233,7 +235,7 @@ int main( int argc, char * argv[] )
 	  lobeSegmenter->SetRightHorizontalFissureIndices( rightHorizontalIndicesVec );
 	  lobeSegmenter->SetRightObliqueFissureIndices( rightObliqueIndicesVec );
   }
-  if( leftOIdxVec.size() > 0 )
+  if( leftObliqueIndicesVec.size() > 0 )
   {
 	  lobeSegmenter->SetLeftObliqueFissureIndices( leftObliqueIndicesVec );
   }

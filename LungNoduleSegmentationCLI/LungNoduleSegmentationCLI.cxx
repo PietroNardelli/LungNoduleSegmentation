@@ -287,6 +287,10 @@ int main( int argc, char * argv[] )
   LabelStatisticsImageFilterType::RealType upperThreshold = mean + 2*sigma;
   LabelStatisticsImageFilterType::RealType lowerThreshold = mean - 2*sigma;
 
+  if( upperThreshold > 250 )
+  {
+	  upperThreshold = 250;
+  }
   std::cout<<"Starting range: "<<lowerThreshold<<"->"<<upperThreshold<<std::endl;
   // Segment the nodule
   clonedROI = roiDuplicator->GetOutput();
@@ -381,7 +385,7 @@ int main( int argc, char * argv[] )
 
 	  upperThreshold = mean + 2 * sigma;
 	  lowerThreshold = mean - 2 * sigma;
-	  if( upperThreshold < 300 && lowerThreshold > -300 )
+	  if( upperThreshold < 250 && lowerThreshold > -300 )
 	  {
 		  // Segment the nodule
 		  clonedROI = roiDuplicator->GetOutput();  
@@ -531,7 +535,7 @@ int main( int argc, char * argv[] )
 	  {
 		  rIt.Set( noduleColor );
 	  }
-	  else if( rIt.Get() != 0 && roiIt.Get() > - 500 )
+	  else if( rIt.Get() != 0 && roiIt.Get() > -500 && roiIt.Get() < 300 )
 	  {
 		  rIt.Set(0);
 		  noduleIt.Set( noduleColor );
@@ -617,12 +621,18 @@ int main( int argc, char * argv[] )
 
   calcIt.GoToBegin();
   roiIt.GoToBegin();
+  noduleIt.GoToBegin();
   while( !calcIt.IsAtEnd() )
   {
-  	  if( calcIt.Get() != 0 && roiIt.Get() >= (mean+sigma) )
+  	  if( noduleIt.Get() != 0 && roiIt.Get() >= (mean+sigma) )
 	  {
 		  calcIt.Set(cip::CALCIFICATION);
 	  }
+	  else if(noduleIt.Get() != 0 && roiIt.Get() > 50)
+	  {
+		  calcIt.Set(cip::CALCIFICATION);
+	  }
+	  ++noduleIt;
 	  ++calcIt;
 	  ++roiIt;
   }
@@ -635,22 +645,33 @@ int main( int argc, char * argv[] )
   LabelMapType::Pointer calcificationLabelMap = calcification2LabelMapFilter->GetOutput();
 
   unsigned int eccentricCalc = 0;
+  unsigned int centralCalc = 0;
 
   for( unsigned int n = 0; n < calcificationLabelMap->GetNumberOfLabelObjects(); ++n )
   {
 	  ShapeLabelObjectType::Pointer labelObject = calcificationLabelMap->GetNthLabelObject(n);
+	  std::cout<<"eq sph rad: "<<labelObject->GetEquivalentSphericalRadius()<<" noduleEqDiameter: "<<noduleEqDiameter<<" roundness: "<<labelObject->GetRoundness()<<std::endl;
 	  if( labelObject->GetEquivalentSphericalRadius() > noduleEqDiameter/4 && labelObject->GetRoundness() > 0.7 )
 	  {
 		  OutputImageType::PointType calcPos = labelObject->GetCentroid();
 		  double dist = calcPos.EuclideanDistanceTo( noduleCentroid );
+		  std::cout<<"dist: "<<dist<<std::endl;
 		  if( dist > 5 )
 		  {
 			  eccentricCalc++;
 		  }
+		  else if( dist < 5 )
+		  {
+			  centralCalc++;
+		  }
 	  }
   }
 
-  if( eccentricCalc <= 1 )
+  if( eccentricCalc == 1 && centralCalc < 1 )
+  {
+	  std::cout<<"Malignant Calcification Pattern"<<std::endl;
+  }
+  else if( centralCalc == 0 && eccentricCalc == 0 )
   {
 	  std::cout<<"Malignant Calcification Pattern"<<std::endl;
   }
@@ -667,7 +688,11 @@ int main( int argc, char * argv[] )
   rts << "NoduleSize = " << noduleEqDiameter << std::endl;
   rts << "NoduleRoundness = " << noduleRoundness << std::endl;
   rts << "CavityWallThickness = " << cavityThickness << std::endl;
-  if( eccentricCalc <= 1 )
+  if( eccentricCalc == 1 && centralCalc < 1 )
+  {
+	  rts << "CalcificationPattern = false" << std::endl;
+  }
+  else if( centralCalc == 0 && eccentricCalc == 0 )
   {
 	  rts << "CalcificationPattern = false" << std::endl;
   }
