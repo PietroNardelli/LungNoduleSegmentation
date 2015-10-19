@@ -168,6 +168,7 @@ int main( int argc, char * argv[] )
 	  rightHStep = 1;
   }
 
+  std::cout<<"leftStep: "<<leftStep<<std::endl;
   std::cout<<"leftOIdxVec: "<<leftOIdxVec.size()<<" rightOIdxVec: "<<rightOIdxVec.size()<<" rightHIdxVec: "<<rightHIdxVec.size()<<std::endl;
 
   for( unsigned int i = 0; i < leftOIdxVec.size(); i += leftStep )

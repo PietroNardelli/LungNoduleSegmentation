@@ -50,7 +50,7 @@ class LungNoduleSegmentationWidget:
     # Parameters Area
     #
     parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "Lung Segmentation"
+    parametersCollapsibleButton.text = "IO Images"
     self.layout.addWidget(parametersCollapsibleButton)
     self.layout.setSpacing(20)
     # Layout within the dummy collapsible button
@@ -88,6 +88,54 @@ class LungNoduleSegmentationWidget:
     IOFormLayout.addRow("Seed Point: ", self.fiducialListSelector)
 
     ###################################################################################
+    ##############################  Patient Info Area  ################################
+    ################################################################################### 
+
+    inputInfoCollapsibleButton = ctk.ctkCollapsibleButton()
+    inputInfoCollapsibleButton.text = "Patient Information"
+    self.layout.addWidget(inputInfoCollapsibleButton)
+
+    # Layout within the dummy collapsible button
+    infoFormLayout = qt.QFormLayout(inputInfoCollapsibleButton)
+
+    PatientInfoSelectionBox = qt.QHBoxLayout()
+    infoFormLayout.addRow(PatientInfoSelectionBox)
+
+    ###################################################################################
+    ################################  Age Selector  ###################################
+    ################################################################################### 
+
+    self.ageComboBox = qt.QComboBox()
+    self.ageComboBox.setMaxCount(120)
+    self.ageComboBox.setFixedWidth(60)
+
+    label = qt.QLabel()
+    label.setText('Age: ')
+    label.setFixedWidth(30)
+
+    AgeSelectionBox = qt.QFrame()
+    AgeSelectionBox.setFixedWidth(100)
+    hbox = qt.QHBoxLayout()
+    AgeSelectionBox.setLayout(hbox)
+
+    AgeSelectionBox.layout().addWidget(label,0,4)
+    AgeSelectionBox.layout().addWidget(self.ageComboBox)
+
+    PatientInfoSelectionBox.addWidget(AgeSelectionBox,0,4)
+
+    ###################################################################################
+    ##########################  Smoking Status Selector  ##############################
+    ################################################################################### 
+
+    self.smokingComboBox = qt.QCheckBox()
+    self.smokingComboBox.setText('Smoker: ')
+    self.smokingComboBox.setLayoutDirection(1)
+    self.smokingComboBox.setFixedWidth(80)
+
+    PatientInfoSelectionBox.addWidget(self.smokingComboBox,0,4)
+
+
+    ###################################################################################
     #######################  Button to trigger segmentation  ##########################
     ###################################################################################    
 
@@ -98,17 +146,143 @@ class LungNoduleSegmentationWidget:
 
     boxLayout = qt.QVBoxLayout()
 
-    IOFormLayout.addRow(boxLayout)
-    boxLayout.addWidget(self.LungNoduleSegmentationButton,0,4)
+    #IOFormLayout.addRow(boxLayout)
+    #boxLayout.addWidget(self.LungNoduleSegmentationButton,0,4)
+    self.layout.addWidget(self.LungNoduleSegmentationButton,0,4)
 
     ###################################################################################
-    ######################## Percentage of malignity ##################################
+    #################### Metric Results + Perc. of Malignancy #########################
     ###################################################################################
 
+    resultCollapsibleButton = ctk.ctkCollapsibleButton()
+    resultCollapsibleButton.text = "Results Area"
+    self.layout.addWidget(resultCollapsibleButton)
+    
+    # Layout within the dummy collapsible button
+    resultsFormLayout = qt.QFormLayout(resultCollapsibleButton)
+
+    FirstRowMetricHBox = qt.QHBoxLayout()
+    resultsFormLayout.addRow(FirstRowMetricHBox)
+    
+    # Nodule Size
+    self.size = qt.QLineEdit()
+    self.size.setReadOnly(1)
+    self.size.setFixedWidth(80)
+
+    sizeLabel = qt.QLabel()
+    sizeLabel.setText('Nodule Diameter: ')
+    sizeLabel.setFixedWidth(90)
+
+    SizeSelectionBox = qt.QFrame()
+    SizeSelectionBox.setFixedWidth(180)
+    sHBox = qt.QHBoxLayout()
+    SizeSelectionBox.setLayout(sHBox)
+
+    SizeSelectionBox.layout().addWidget(sizeLabel,0,4)
+    SizeSelectionBox.layout().addWidget(self.size)
+
+    FirstRowMetricHBox.addWidget(SizeSelectionBox,0,4)
+
+    # Nodule Location
+    self.location = qt.QLineEdit()
+    self.location.setReadOnly(1)
+    self.location.setFixedWidth(200)
+
+    locationLabel = qt.QLabel()
+    locationLabel.setText('Nodule Location: ')
+    locationLabel.setFixedWidth(80)
+
+    LocationSelectionBox = qt.QFrame()
+    LocationSelectionBox.setFixedWidth(290)
+    lHBox = qt.QHBoxLayout()
+    LocationSelectionBox.setLayout(lHBox)
+
+    LocationSelectionBox.layout().addWidget(locationLabel,0,4)
+    LocationSelectionBox.layout().addWidget(self.location)
+
+    FirstRowMetricHBox.addWidget(LocationSelectionBox,0,4)
+
+    # Nodule Cavity Wall Thickness
+    self.thickness = qt.QLineEdit()
+    self.thickness.setReadOnly(1)
+    self.thickness.setFixedWidth(80)
+
+    thickLabel = qt.QLabel()
+    thickLabel.setText('Cavity Wall Thickness: ')
+    thickLabel.setFixedWidth(110)
+
+    ThicknessSelectionBox = qt.QFrame()
+    ThicknessSelectionBox.setFixedWidth(200)
+    tHBox = qt.QHBoxLayout()
+    ThicknessSelectionBox.setLayout(tHBox)
+
+    ThicknessSelectionBox.layout().addWidget(thickLabel,0,4)
+    ThicknessSelectionBox.layout().addWidget(self.thickness)
+
+    FirstRowMetricHBox.addWidget(ThicknessSelectionBox,0,4)
+
+    # Spiculation
+    SecondRowMetricHBox = qt.QHBoxLayout()
+    resultsFormLayout.addRow(SecondRowMetricHBox)
+    
+    self.spiculation = qt.QLineEdit()
+    self.spiculation.setReadOnly(1)
+    self.spiculation.setFixedWidth(150)
+
+    spicLabel = qt.QLabel()
+    spicLabel.setText('Nodule Smoothness: ')
+    spicLabel.setFixedWidth(100)
+
+    SpiculationSelectionBox = qt.QFrame()
+    SpiculationSelectionBox.setFixedWidth(260)
+    spicHBox = qt.QHBoxLayout()
+    SpiculationSelectionBox.setLayout(spicHBox)
+
+    SpiculationSelectionBox.layout().addWidget(spicLabel,0,4)
+    SpiculationSelectionBox.layout().addWidget(self.spiculation)
+    
+    SecondRowMetricHBox.addWidget(SpiculationSelectionBox,0,4)
+
+    # Calcification
+    self.calcification = qt.QLineEdit()
+    self.calcification.setReadOnly(1)
+    self.calcification.setFixedWidth(200)
+
+    calcLabel = qt.QLabel()
+    calcLabel.setText('Calcification Pattern: ')
+    calcLabel.setFixedWidth(100)
+
+    CalcificationSelectionBox = qt.QFrame()
+    CalcificationSelectionBox.setFixedWidth(310)
+    calcHBox = qt.QHBoxLayout()
+    CalcificationSelectionBox.setLayout(calcHBox)
+
+    CalcificationSelectionBox.layout().addWidget(calcLabel,0,4)
+    CalcificationSelectionBox.layout().addWidget(self.calcification)
+
+    SecondRowMetricHBox.addWidget(CalcificationSelectionBox,0,4)
+    
+    # Percentage of malignancy
     self.percentageOfMalignancy = qt.QLineEdit()
-    self.percentageOfMalignancy.setReadOnly(0)
+    self.percentageOfMalignancy.setReadOnly(1)
+    self.percentageOfMalignancy.setFixedWidth(50)
 
-    IOFormLayout.addRow("Percentage Of Malignancy: ", self.percentageOfMalignancy)
+    malignancyLabel = qt.QLabel()
+    malignancyLabel.setText('Percentage Of Malignancy: ')
+    malignancyLabel.setFixedWidth(150)
+
+    MalignancySelectionBox = qt.QFrame()
+    MalignancySelectionBox.setFixedWidth(210)
+    mHBox = qt.QHBoxLayout()
+    MalignancySelectionBox.setLayout(mHBox)
+
+    MalignancySelectionBox.layout().addWidget(malignancyLabel,0,4)
+    MalignancySelectionBox.layout().addWidget(self.percentageOfMalignancy)
+
+    resultsHBoxLayout = qt.QHBoxLayout()
+    resultsHBoxLayout.addWidget(MalignancySelectionBox,0,4)
+
+    resultsFormLayout.addRow(resultsHBoxLayout)
 
     ########################################################################################
     ################################ Create Connections ####################################
@@ -122,6 +296,16 @@ class LungNoduleSegmentationWidget:
     # Add Vertical Spacer
     #
     self.layout.addStretch(1)
+
+    self.updateGUI()
+
+
+  def updateGUI(self):
+    for i in xrange(1, 121):
+        self.ageComboBox.addItem(i)
+
+    self.ageComboBox.setCurrentIndex(49)
+    self.ageComboBox.setEditable(1)
 
   def onSelect(self):
 
@@ -305,14 +489,44 @@ class LungNoduleSegmentationWidget:
     noduleCavityWallThickness = NoduleSegmentationNode.GetParameterDefault(2,3) 
     noduleCalcificationPattern = NoduleSegmentationNode.GetParameterDefault(2,4)
 
+    size_str = str(noduleSize) + ' mm'
+    self.size.setText(size_str)
+
+    smoothness_str = 'Smooth'
+    if noduleRoundness < 0.7:
+      smoothness_str = 'Spiculated'
+
+    self.spiculation.setText(smoothness_str)
+
+    thickness_str = 'No Calcification'
+    if (thickness_str > 0 and thickness_str < 100):
+      thickness_str = str(noduleCavityWallThickness) + ' mm'
+    self.thickness.setText(thickness_str)
+
     lobesImageData = self.LobesNode.GetImageData()
 
-    print nodulePosition
     nodulePosition = eval(nodulePosition)
-    print nodulePosition[0]
 
     lobeValue = lobesImageData.GetScalarComponentAsDouble(int(nodulePosition[0]),int(nodulePosition[1]),int(nodulePosition[2]), 0)
-    string_percentage = str(lobeValue) + '%'        
+    position_str = 'Right Upper Lobe'
+    if lobeValue == 5:
+      position_str = 'Right Middle Lobe'
+    elif lobeValue == 6:
+      position_str = 'Right Lower Lobe'
+    elif lobeValue == 7:
+      position_str = 'Left Upper Lobe'
+    elif lobeValue == 8:
+      position_str = 'Left Lower Lobe'
+
+    self.location.setText(position_str)
+
+    calc_str = 'Benign Pattern'
+    if noduleCalcificationPattern == False:
+      calc_str = 'No Calcification'
+
+    self.calcification.setText(calc_str)
+    
+    string_percentage = str(lobeValue) + '%'    
        
     self.percentageOfMalignancy.setText(string_percentage)
  
