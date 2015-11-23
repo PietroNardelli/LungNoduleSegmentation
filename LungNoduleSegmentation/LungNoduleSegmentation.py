@@ -88,6 +88,38 @@ class LungNoduleSegmentationWidget:
     IOFormLayout.addRow("Seed Point: ", self.fiducialListSelector)
 
     ###################################################################################
+    #########################  Prior Prob Of Malignancy  ##############################
+    ################################################################################### 
+
+    priorProbCollapsibleButton = ctk.ctkCollapsibleButton()
+    priorProbCollapsibleButton.text = "Prior Probability of Malignancy"
+    self.layout.addWidget(priorProbCollapsibleButton)
+
+    # Layout within the dummy collapsible button
+    priorFormLayout = qt.QFormLayout(priorProbCollapsibleButton)
+
+    PriorProbBox = qt.QHBoxLayout()
+    priorFormLayout.addRow(PriorProbBox)
+
+    self.priorComboBox = qt.QComboBox()
+    self.priorComboBox.setLayoutDirection(1)
+    self.priorComboBox.setFixedWidth(50)
+
+    priorLabel = qt.QLabel()
+    priorLabel.setText('Select Prior Probability (%): ')
+    priorLabel.setFixedWidth(150)
+
+    PriorSelectionBox = qt.QFrame()
+    PriorSelectionBox.setFixedWidth(210)
+    priorHBox = qt.QHBoxLayout()
+    PriorSelectionBox.setLayout(priorHBox)
+
+    PriorSelectionBox.layout().addWidget(priorLabel,0,4)
+    PriorSelectionBox.layout().addWidget(self.priorComboBox)
+
+    PriorProbBox.addWidget(PriorSelectionBox,0,4)
+
+    ###################################################################################
     ##############################  Patient Info Area  ################################
     ################################################################################### 
 
@@ -326,6 +358,7 @@ class LungNoduleSegmentationWidget:
 
     malignancyLabel = qt.QLabel()
     malignancyLabel.setText('Percentage Of Malignancy: ')
+    malignancyLabel.setStyleSheet("background-color: rgb(255,255,102)")
     malignancyLabel.setFixedWidth(130)
 
     MalignancySelectionBox = qt.QFrame()
@@ -341,6 +374,16 @@ class LungNoduleSegmentationWidget:
 
     resultsFormLayout.addRow(resultsHBoxLayout)
 
+
+    self.RecomputeButton = qt.QPushButton("Recalculate Probability")
+    self.RecomputeButton.toolTip = "Recalculate probabilty of malignancy with new parameters"
+    self.RecomputeButton.setFixedSize(200,50)
+    
+    #recomputeBoxLayout = qt.QVBoxLayout()
+
+    #IOFormLayout.addRow(boxLayout)
+    #boxLayout.addWidget(self.LungNoduleSegmentationButton,0,4)
+    self.layout.addWidget(self.RecomputeButton,0,4)
     ########################################################################################
     ################################ Create Connections ####################################
     ########################################################################################
@@ -376,6 +419,10 @@ class LungNoduleSegmentationWidget:
     
     self.prevMalComboBox.setCurrentIndex(0)
     self.prevMalComboBox.setEditable(0)
+
+    for i in xrange(1,100):
+      self.priorComboBox.addItem(i)
+      self.priorComboBox.setCurrentIndex(49)
     
   def onSelect(self):
     if self.inputSelector.currentNode():
@@ -387,7 +434,7 @@ class LungNoduleSegmentationWidget:
       instUIDs = inputNode.GetAttribute('DICOM.instanceUIDs').split()
       fileName = slicer.dicomDatabase.fileForInstance(instUIDs[0])
       patientAge = slicer.dicomDatabase.fileValue(fileName,'0010,1010')
-      patientAge=patientAge[1:3]
+      patientAge = patientAge[1:3]
       age_str = str(patientAge)
       self.age.setText(age_str)
       
