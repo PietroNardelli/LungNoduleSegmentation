@@ -98,42 +98,99 @@ class LungNoduleSegmentationWidget:
     # Layout within the dummy collapsible button
     infoFormLayout = qt.QFormLayout(inputInfoCollapsibleButton)
 
-    PatientInfoSelectionBox = qt.QHBoxLayout()
-    infoFormLayout.addRow(PatientInfoSelectionBox)
+    PatientInfoSelectionBoxOne = qt.QHBoxLayout()
+    infoFormLayout.addRow(PatientInfoSelectionBoxOne)
+
+    PatientInfoSelectionBoxTwo = qt.QHBoxLayout()
+    infoFormLayout.addRow(PatientInfoSelectionBoxTwo)
 
     ###################################################################################
     ################################  Age Selector  ###################################
     ################################################################################### 
 
-    self.ageComboBox = qt.QComboBox()
-    self.ageComboBox.setMaxCount(120)
-    self.ageComboBox.setFixedWidth(60)
+    self.age = qt.QLineEdit()
+    self.age.setReadOnly(1)
+    self.age.setFixedWidth(40)
 
-    label = qt.QLabel()
-    label.setText('Age: ')
-    label.setFixedWidth(30)
+    ageLabel = qt.QLabel()
+    ageLabel.setText('Patient Age: ')
+    ageLabel.setFixedWidth(60)
 
     AgeSelectionBox = qt.QFrame()
-    AgeSelectionBox.setFixedWidth(100)
-    hbox = qt.QHBoxLayout()
-    AgeSelectionBox.setLayout(hbox)
+    AgeSelectionBox.setFixedWidth(120)
+    ageHBox = qt.QHBoxLayout()
+    AgeSelectionBox.setLayout(ageHBox)
 
-    AgeSelectionBox.layout().addWidget(label,0,4)
-    AgeSelectionBox.layout().addWidget(self.ageComboBox)
+    AgeSelectionBox.layout().addWidget(ageLabel,0,4)
+    AgeSelectionBox.layout().addWidget(self.age)
 
-    PatientInfoSelectionBox.addWidget(AgeSelectionBox,0,4)
+    PatientInfoSelectionBoxOne.addWidget(AgeSelectionBox,0,4)
 
     ###################################################################################
     ##########################  Smoking Status Selector  ##############################
     ################################################################################### 
 
-    self.smokingComboBox = qt.QCheckBox()
-    self.smokingComboBox.setText('Smoker: ')
+    self.smokingComboBox = qt.QComboBox()
     self.smokingComboBox.setLayoutDirection(1)
-    self.smokingComboBox.setFixedWidth(80)
+    self.smokingComboBox.setFixedWidth(90)
 
-    PatientInfoSelectionBox.addWidget(self.smokingComboBox,0,4)
+    smokeLabel = qt.QLabel()
+    smokeLabel.setText('Smoker (Pk-Yrs): ')
+    smokeLabel.setFixedWidth(80)
 
+    SmokeSelectionBox = qt.QFrame()
+    SmokeSelectionBox.setFixedWidth(190)
+    smokeHBox = qt.QHBoxLayout()
+    SmokeSelectionBox.setLayout(smokeHBox)
+
+    SmokeSelectionBox.layout().addWidget(smokeLabel,0,4)
+    SmokeSelectionBox.layout().addWidget(self.smokingComboBox)
+
+    PatientInfoSelectionBoxOne.addWidget(SmokeSelectionBox,0,4)
+
+    ###################################################################################
+    ############################  Hemoptysis Selector  ################################
+    ################################################################################### 
+
+    self.hemoptysisComboBox = qt.QComboBox()
+    self.hemoptysisComboBox.setLayoutDirection(1)
+    self.hemoptysisComboBox.setFixedWidth(80)
+
+    hemoptysisLabel = qt.QLabel()
+    hemoptysisLabel.setText('Hemoptysis: ')
+    hemoptysisLabel.setFixedWidth(70)
+
+    HemoptysisSelectionBox = qt.QFrame()
+    HemoptysisSelectionBox.setFixedWidth(170)
+    hemoptysisHBox = qt.QHBoxLayout()
+    HemoptysisSelectionBox.setLayout(hemoptysisHBox)
+
+    HemoptysisSelectionBox.layout().addWidget(hemoptysisLabel,0,4)
+    HemoptysisSelectionBox.layout().addWidget(self.hemoptysisComboBox)
+
+    PatientInfoSelectionBoxTwo.addWidget(HemoptysisSelectionBox,0,4)
+
+    ###################################################################################
+    ############################  Hx Prev Selector  ################################
+    ################################################################################### 
+
+    self.prevMalComboBox = qt.QComboBox()
+    self.prevMalComboBox.setLayoutDirection(1)
+    self.prevMalComboBox.setFixedWidth(80)
+
+    prevMalLabel = qt.QLabel()
+    prevMalLabel.setText('Hx Prev Malig: ')
+    prevMalLabel.setFixedWidth(70)
+
+    PrevMalSelectionBox = qt.QFrame()
+    PrevMalSelectionBox.setFixedWidth(170)
+    prevMalHBox = qt.QHBoxLayout()
+    PrevMalSelectionBox.setLayout(prevMalHBox)
+
+    PrevMalSelectionBox.layout().addWidget(prevMalLabel,0,4)
+    PrevMalSelectionBox.layout().addWidget(self.prevMalComboBox)
+
+    PatientInfoSelectionBoxTwo.addWidget(PrevMalSelectionBox,0,4)
 
     ###################################################################################
     #######################  Button to trigger segmentation  ##########################
@@ -186,14 +243,14 @@ class LungNoduleSegmentationWidget:
     # Nodule Location
     self.location = qt.QLineEdit()
     self.location.setReadOnly(1)
-    self.location.setFixedWidth(200)
+    self.location.setFixedWidth(180)
 
     locationLabel = qt.QLabel()
     locationLabel.setText('Nodule Location: ')
     locationLabel.setFixedWidth(80)
 
     LocationSelectionBox = qt.QFrame()
-    LocationSelectionBox.setFixedWidth(290)
+    LocationSelectionBox.setFixedWidth(270)
     lHBox = qt.QHBoxLayout()
     LocationSelectionBox.setLayout(lHBox)
 
@@ -227,14 +284,14 @@ class LungNoduleSegmentationWidget:
     
     self.spiculation = qt.QLineEdit()
     self.spiculation.setReadOnly(1)
-    self.spiculation.setFixedWidth(150)
+    self.spiculation.setFixedWidth(130)
 
     spicLabel = qt.QLabel()
     spicLabel.setText('Nodule Smoothness: ')
     spicLabel.setFixedWidth(100)
 
     SpiculationSelectionBox = qt.QFrame()
-    SpiculationSelectionBox.setFixedWidth(260)
+    SpiculationSelectionBox.setFixedWidth(240)
     spicHBox = qt.QHBoxLayout()
     SpiculationSelectionBox.setLayout(spicHBox)
 
@@ -246,14 +303,14 @@ class LungNoduleSegmentationWidget:
     # Calcification
     self.calcification = qt.QLineEdit()
     self.calcification.setReadOnly(1)
-    self.calcification.setFixedWidth(200)
+    self.calcification.setFixedWidth(150)
 
     calcLabel = qt.QLabel()
     calcLabel.setText('Calcification Pattern: ')
     calcLabel.setFixedWidth(100)
 
     CalcificationSelectionBox = qt.QFrame()
-    CalcificationSelectionBox.setFixedWidth(310)
+    CalcificationSelectionBox.setFixedWidth(260)
     calcHBox = qt.QHBoxLayout()
     CalcificationSelectionBox.setLayout(calcHBox)
 
@@ -269,7 +326,7 @@ class LungNoduleSegmentationWidget:
 
     malignancyLabel = qt.QLabel()
     malignancyLabel.setText('Percentage Of Malignancy: ')
-    malignancyLabel.setFixedWidth(150)
+    malignancyLabel.setFixedWidth(130)
 
     MalignancySelectionBox = qt.QFrame()
     MalignancySelectionBox.setFixedWidth(210)
@@ -296,30 +353,65 @@ class LungNoduleSegmentationWidget:
     # Add Vertical Spacer
     #
     self.layout.addStretch(1)
-
     self.updateGUI()
 
-
   def updateGUI(self):
-    for i in xrange(1, 121):
-        self.ageComboBox.addItem(i)
+    self.smokingComboBox.addItem('Not Known')
+    self.smokingComboBox.addItem('Non-Smoker')
+    self.smokingComboBox.addItem('< 30 Pk-Yrs ')
+    self.smokingComboBox.addItem('30-39 Pk-Yrs')
+    self.smokingComboBox.addItem('> 40 Pk-Yrs ')
 
-    self.ageComboBox.setCurrentIndex(49)
-    self.ageComboBox.setEditable(1)
+    self.smokingComboBox.setCurrentIndex(0)
+    self.smokingComboBox.setEditable(0)
 
+    self.hemoptysisComboBox.addItem('Absent')
+    self.hemoptysisComboBox.addItem('Present')
+    
+    self.hemoptysisComboBox.setCurrentIndex(0)
+    self.hemoptysisComboBox.setEditable(0)
+
+    self.prevMalComboBox.addItem('Absent')
+    self.prevMalComboBox.addItem('Present')
+    
+    self.prevMalComboBox.setCurrentIndex(0)
+    self.prevMalComboBox.setEditable(0)
+    
   def onSelect(self):
+    if self.inputSelector.currentNode():
+      # Read patient's age from DICOM metadata
+      inputVolume = self.inputSelector.currentNode()
+      inputName = inputVolume.GetName()
 
+      inputNode = slicer.util.getNode(inputName)
+      instUIDs = inputNode.GetAttribute('DICOM.instanceUIDs').split()
+      fileName = slicer.dicomDatabase.fileForInstance(instUIDs[0])
+      patientAge = slicer.dicomDatabase.fileValue(fileName,'0010,1010')
+      patientAge=patientAge[1:3]
+      age_str = str(patientAge)
+      self.age.setText(age_str)
+      
     if self.inputSelector.currentNode() and self.fiducialListSelector.currentNode():
       self.LungNoduleSegmentationButton.enabled = True
 
   def onStartSegmentationButton(self):
+    inputVolume = self.inputSelector.currentNode()
+    inputName = inputVolume.GetName()
+    
+    inputNode = slicer.util.getNode(inputName)
+    instUIDs = inputNode.GetAttribute('DICOM.instanceUIDs').split()
+    fileName = slicer.dicomDatabase.fileForInstance(instUIDs[0])
+    patientAge = slicer.dicomDatabase.fileValue(fileName,'0010,1010')
+    patientAge=patientAge[1:3]
+    age_str = str(patientAge)
+    self.age.setText(age_str)
+    
     # Analyze histogram of the image to work out the second peak intensity value
     start = timeit.default_timer()
 
     self.LungNoduleSegmentationButton.enabled = False   
-    inputVolume = self.inputSelector.currentNode()
     seedPoint = self.fiducialListSelector.currentNode()
-
+    
     inputNodeArray = slicer.util.array(inputVolume.GetID())
     maskedImage = inputNodeArray[inputNodeArray >= -1024]
 
@@ -493,13 +585,16 @@ class LungNoduleSegmentationWidget:
     self.size.setText(size_str)
 
     smoothness_str = 'Smooth'
+    noduleRoundness = float(noduleRoundness)
     if noduleRoundness < 0.7:
       smoothness_str = 'Spiculated'
 
     self.spiculation.setText(smoothness_str)
 
-    thickness_str = 'No Calcification'
-    if (thickness_str > 0 and thickness_str < 100):
+    thickness_str = 'Not Cavitated'
+    noduleCavityWallThickness = float(noduleCavityWallThickness)
+    if (noduleCavityWallThickness >= 0.1 and noduleCavityWallThickness < 100.0):
+      print noduleCavityWallThickness
       thickness_str = str(noduleCavityWallThickness) + ' mm'
     self.thickness.setText(thickness_str)
 
@@ -521,7 +616,7 @@ class LungNoduleSegmentationWidget:
     self.location.setText(position_str)
 
     calc_str = 'Benign Pattern'
-    if noduleCalcificationPattern == False:
+    if noduleCalcificationPattern == 'false':
       calc_str = 'No Calcification'
 
     self.calcification.setText(calc_str)

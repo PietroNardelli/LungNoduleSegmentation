@@ -650,7 +650,6 @@ int main( int argc, char * argv[] )
   for( unsigned int n = 0; n < calcificationLabelMap->GetNumberOfLabelObjects(); ++n )
   {
 	  ShapeLabelObjectType::Pointer labelObject = calcificationLabelMap->GetNthLabelObject(n);
-	  std::cout<<"eq sph rad: "<<labelObject->GetEquivalentSphericalRadius()<<" noduleEqDiameter: "<<noduleEqDiameter<<" roundness: "<<labelObject->GetRoundness()<<std::endl;
 	  if( labelObject->GetEquivalentSphericalRadius() > noduleEqDiameter/4 && labelObject->GetRoundness() > 0.7 )
 	  {
 		  OutputImageType::PointType calcPos = labelObject->GetCentroid();
