@@ -650,7 +650,8 @@ int main( int argc, char * argv[] )
   for( unsigned int n = 0; n < calcificationLabelMap->GetNumberOfLabelObjects(); ++n )
   {
 	  ShapeLabelObjectType::Pointer labelObject = calcificationLabelMap->GetNthLabelObject(n);
-	  if( labelObject->GetEquivalentSphericalRadius() > noduleEqDiameter/4 && labelObject->GetRoundness() > 0.7 )
+	  std::cout<<"labelObject: "<<labelObject->GetEquivalentSphericalRadius()<<" "<<labelObject->GetRoundness()<<std::endl;
+	  if( labelObject->GetEquivalentSphericalRadius() > noduleEqDiameter/4 ) //&& labelObject->GetRoundness() > 0.7 )
 	  {
 		  OutputImageType::PointType calcPos = labelObject->GetCentroid();
 		  double dist = calcPos.EuclideanDistanceTo( noduleCentroid );

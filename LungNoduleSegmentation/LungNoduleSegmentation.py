@@ -378,11 +378,8 @@ class LungNoduleSegmentationWidget:
     self.RecomputeButton = qt.QPushButton("Recalculate Probability")
     self.RecomputeButton.toolTip = "Recalculate probabilty of malignancy with new parameters"
     self.RecomputeButton.setFixedSize(200,50)
-    
-    #recomputeBoxLayout = qt.QVBoxLayout()
+    self.RecomputeButton.enabled = False
 
-    #IOFormLayout.addRow(boxLayout)
-    #boxLayout.addWidget(self.LungNoduleSegmentationButton,0,4)
     self.layout.addWidget(self.RecomputeButton,0,4)
     ########################################################################################
     ################################ Create Connections ####################################
@@ -391,6 +388,7 @@ class LungNoduleSegmentationWidget:
     self.fiducialListSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
     self.LungNoduleSegmentationButton.connect('clicked(bool)', self.onStartSegmentationButton)
+    self.RecomputeButton.connect('clicked(bool)', self.calculateProbability)
   
     #
     # Add Vertical Spacer
@@ -401,9 +399,9 @@ class LungNoduleSegmentationWidget:
   def updateGUI(self):
     self.smokingComboBox.addItem('Not Known')
     self.smokingComboBox.addItem('Non-Smoker')
-    self.smokingComboBox.addItem('< 30 Pk-Yrs ')
+    self.smokingComboBox.addItem('< 30 Pk-Yrs')
     self.smokingComboBox.addItem('30-39 Pk-Yrs')
-    self.smokingComboBox.addItem('> 40 Pk-Yrs ')
+    self.smokingComboBox.addItem('> 40 Pk-Yrs')
 
     self.smokingComboBox.setCurrentIndex(0)
     self.smokingComboBox.setEditable(0)
@@ -667,13 +665,128 @@ class LungNoduleSegmentationWidget:
       calc_str = 'No Calcification'
 
     self.calcification.setText(calc_str)
-    
-    string_percentage = str(lobeValue) + '%'    
-       
-    self.percentageOfMalignancy.setText(string_percentage)
  
     self.LungNoduleSegmentationButton.enabled = True
 
+    self.calculateProbability()
+    self.RecomputeButton.enabled = True
+
+  def calculateProbability(self):
+    
+    priorProbability = self.priorComboBox.currentText
+    priorProbability = float(priorProbability)/100
+    priorOdds = priorProbability/(1.0-priorProbability)
+    print "priorOdds: ", priorOdds
+
+    age = int(self.age.text)
+    ageRatio = 1.0
+    if age >= 20 and age <= 29:
+      ageRatio = 0.05
+    elif  age >= 30 and age <= 39:
+      ageRatio = 0.24
+    elif age >= 40 and age <= 49:
+      ageRatio = 0.94
+    elif age >= 50 and age <= 59:
+      ageRatio = 1.90
+    elif age >= 60 and age <= 69:
+      ageRatio = 2.64
+    elif age >= 70:
+      ageRatio = 4.16
+
+    print "ageRatio: ", ageRatio
+      
+    smokingYears = self.smokingComboBox.currentText
+    smokingRatio = 1.0
+    if smokingYears == 'Non-Smoker':
+      smokingRatio = 0.17
+    elif smokingYears == '< 30 Pk-Yrs':
+      smokingRatio = 0.75
+    elif smokingYears == '30-39 Pk-Yrs':
+      smokingRatio = 2.0
+    elif smokingYears == '> 40 Pk-Yrs':
+      smokingRatio = 3.7
+
+    print "smokingRatio: ", smokingRatio
+    
+    hemoptysis = self.hemoptysisComboBox.currentText
+    hemoptysisRatio = 1.0
+    if hemoptysis == 'Present':
+      hemoptysisRatio = 5.08
+
+    prevMal = self.prevMalComboBox.currentText
+    prevMalRatio = 1.0
+    if prevMal == 'Present':
+      prevMalRatio = 4.95
+
+    size = self.size.text
+    size = size.split(' ')
+    size = float(size[0])/10.0
+    sizeRatio = 1.0
+    if size >=0 and size <= 1.05:
+      sizeRatio = 0.52
+    elif size > 1.05 and size <= 2.05:
+      sizeRatio = 0.74
+    elif size > 2.05 and size <= 3.0:
+      sizeRatio = 3.67
+    elif size > 3:
+      sizeRatio = 5.23
+
+    print "sizeRatio: ", sizeRatio
+    
+    location = self.location.text
+    locationRatio = 1.0
+    if location == 'Right Upper Lobe' or location == 'Right Middle Lobe' or location == 'Left Upper Lobe':
+      locationRatio = 1.22
+    elif location == 'Right Lower Lobe' or location == 'Left Lower Lobe':
+      locationRatio = 0.66
+
+    print "locationRatio: ", locationRatio
+
+    thickness = self.thickness.text
+    thicknessRatio = 1.0
+    if thickness == 'Not Cavitated':
+      thicnknessRatio = 1.0
+    else:
+      thickness = thickness.split(' ')
+      thickness = float(thickness[0])
+      if thickness < 4.99:
+        thicnknessRatio = 0.07
+      elif thickness >= 5.0 and thickness <= 15.99:
+        thicknessRatio = 0.72
+      elif thickness >= 16:
+        thicknessRatio = 37.97
+
+    print "thicknessRatio: ", thicknessRatio
+    
+    spiculation = self.spiculation.text
+    spiculationRatio = 1.0
+    if spiculation == 'Smooth':
+      spiculationRatio =  0.3
+    elif spiculation == 'Spiculated':
+      spiculationRatio = 5.54
+
+    print "spiculationRatio: ", spiculationRatio
+
+    calcification = self.calcification.text
+    calcificationRatio = 1.0
+    if calcification == 'Benign Pattern':
+      calcificationRatio = 0.01
+    elif calcification == 'No Calcification':
+      calcificationRatio = 2.2
+
+    print "calcificationRatio: ", calcificationRatio
+
+
+    postOdds = priorOdds * ageRatio * smokingRatio * hemoptysisRatio * prevMalRatio * sizeRatio * locationRatio * thicknessRatio * spiculationRatio * calcificationRatio
+    print postOdds
+    probability = postOdds/(postOdds+1)
+    probability = float("{0:.2f}".format(probability))*100
+    probability = int(probability)
+      
+    string_percentage = str(probability) + '%' 
+       
+    self.percentageOfMalignancy.setText(string_percentage)
+    
   def datacheck_peakdetect(self, x_axis, y_axis):
     if x_axis is None:
         x_axis = range(len(y_axis))
